@@ -53,8 +53,10 @@ app.get(
   upgradeWebSocket((c) => {
     return {
       onOpen(_event, ws) {
+        if (ws.url?.searchParams.get("id") === null) {
+          return ws.close();
+        }
         clients.push(ws);
-        console.log(clients.length);
       },
       onMessage(_event, ws) {
         console.log(ws);
