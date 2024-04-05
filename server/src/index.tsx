@@ -59,7 +59,7 @@ app.get(
         clients.push(ws);
       },
       onMessage(_event, ws) {
-        console.log(ws);
+        console.log(_event.data);
       },
       onClose(_event, ws) {
         clients.splice(clients.indexOf(ws), 1);
