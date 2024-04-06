@@ -43,7 +43,7 @@ app.get("/send/:id", (c) => {
   const id = c.req.param("id");
   const ws = clients.find((c) => c.url?.searchParams.get("id") === id);
   if (ws) {
-    ws.send("Hello World for you");
+    ws.send(JSON.stringify({ time: new Date().toISOString(), message: "Hello ESP32" }));
   }
   return c.json({ id });
 });
@@ -62,7 +62,13 @@ app.get(
         console.log(_event.data);
       },
       onClose(_event, ws) {
-        clients.splice(clients.indexOf(ws), 1);
+        const id = ws.url?.searchParams.get("id");
+
+        const index = clients.findIndex(
+          (c) => c.url?.searchParams.get("id") === id
+        );
+
+        clients.splice(index, 1);
       },
     };
   })
