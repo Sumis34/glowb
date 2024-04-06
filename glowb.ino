@@ -1,5 +1,6 @@
 #include <WebSocketsClient.h>
 #include <WiFiManager.h>
+
 #include "ArduinoJson.h"
 
 String hostname = "glowb";
@@ -33,6 +34,11 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
 
             // send message to server
             ws.sendTXT(resString);
+
+            digitalWrite(2, HIGH);
+            delay(500);
+            digitalWrite(2, LOW);
+
             break;
         case WStype_ERROR:
             break;
@@ -44,6 +50,8 @@ void setup() {
     WiFi.setHostname(hostname.c_str());
     Serial.begin(115200);
     WiFiManager wm;
+
+    pinMode(2, OUTPUT);
 
     // wm.resetSettings();
 
