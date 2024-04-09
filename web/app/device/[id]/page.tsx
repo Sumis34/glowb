@@ -24,7 +24,7 @@ const WHITE_TONES = [
   },
   {
     displayColor: "#bde0fe",
-    color: { h: 30, s: 50, v: 100, a: 1 },
+    color: { h: 208, s: 97, v: 87, a: 1 },
   },
 ];
 
@@ -77,7 +77,11 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
             <TabsContent value="white" className="flex justify-center">
               <RadioGroup className="flex gap-8 pt-10">
                 {WHITE_TONES.map((tone) => (
-                  <div key={tone.displayColor} className="w-20 h-20">
+                  <div
+                    key={tone.displayColor}
+                    onClick={() => setHsva(tone.color)}
+                    className="w-20 h-20"
+                  >
                     <RadioGroupItem
                       value={tone.displayColor}
                       id={tone.displayColor}
