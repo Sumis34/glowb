@@ -5,7 +5,7 @@ import { WSContext } from "hono/ws";
 const app = new Hono();
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 
-const clients: WSContext[] = [];
+const clients: { id: string; ws: WSContext }[] = [];
 
 app.get("/", (c) => {
   return c.html(
@@ -36,14 +36,16 @@ app.get("/", (c) => {
 });
 
 app.get("/clients", (c) => {
-  return c.json({ clients: clients.map((c) => c.url?.searchParams) });
+  return c.json({ clients: clients.map((c) => c.id) });
 });
 
 app.get("/send/:id", (c) => {
   const id = c.req.param("id");
-  const ws = clients.find((c) => c.url?.searchParams.get("id") === id);
-  if (ws) {
-    ws.send(JSON.stringify({ time: new Date().toISOString(), message: "Hello ESP32" }));
+  const client = clients.find((c) => c.id === id);
+  if (client) {
+    client.ws.send(
+      JSON.stringify({ time: new Date().toISOString(), message: "Hello ESP32" })
+    );
   }
   return c.json({ id });
 });
@@ -52,20 +54,32 @@ app.get(
   "/ws",
   upgradeWebSocket((c) => {
     return {
-      onOpen(_event, ws) {
+      async onOpen(_event, ws) {
         if (ws.url?.searchParams.get("id") === null) {
           return ws.close();
         }
-        clients.push(ws);
+
+        const client = {
+          id: ws.url?.searchParams.get("id") as string,
+          ws,
+        };
+
+        clients.splice(clients.indexOf(client), 1);
+        clients.push(client);
       },
       onMessage(_event, ws) {
-        console.log(_event.data);
+        console.log(JSON.parse(_event.data.toString()));
+      },
+      onError(evt, ws) {
+        console.error(evt);
       },
       onClose(_event, ws) {
+        console.log("close");
+
         const id = ws.url?.searchParams.get("id");
 
         const index = clients.findIndex(
-          (c) => c.url?.searchParams.get("id") === id
+          (c) => c.ws.url?.searchParams.get("id") === id
         );
 
         clients.splice(index, 1);

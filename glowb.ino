@@ -13,18 +13,18 @@ StaticJsonDocument<size> res;
 
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
     String resString;
-    ws.sendTXT("got event");
     switch (type) {
         case WStype_DISCONNECTED:
 
             break;
         case WStype_CONNECTED:
+            res["type"] = "ack";
+            res["message"] = "connected";
 
-            // send message to server when Connected
-            ws.sendTXT("Connected");
+            serializeJson(res, resString);
+            ws.sendTXT(resString);
             break;
         case WStype_TEXT:
-
             deserializeJson(data, payload);
 
             res["type"] = "ack";
@@ -65,7 +65,9 @@ void setup() {
         Serial.println("connected...yeey :)");
     }
 
-    ws.begin("192.168.1.127", 5005, "/ws?id=glowb2");
+    String macAddress = String(ESP.getEfuseMac(), HEX);
+
+    ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
 
     // event handler
     ws.onEvent(webSocketEvent);
