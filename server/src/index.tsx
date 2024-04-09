@@ -39,12 +39,12 @@ app.get("/clients", (c) => {
   return c.json({ clients: clients.map((c) => c.id) });
 });
 
-app.get("/send/:id", (c) => {
+app.post("/device/:id/toggle", (c) => {
   const id = c.req.param("id");
   const client = clients.find((c) => c.id === id);
   if (client) {
     client.ws.send(
-      JSON.stringify({ time: new Date().toISOString(), message: "Hello ESP32" })
+      JSON.stringify({ time: new Date().toISOString(), type: "TOGGLE_POWER" })
     );
   }
   return c.json({ id });

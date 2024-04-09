@@ -51,6 +51,25 @@ const SCENES = [
   },
 ];
 
+const sendColor = (
+  color: { h: number; s: number; v: number; a: number },
+  id: string
+) => {
+  fetch(`/api/device/${id}/color`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(color),
+  });
+};
+
+const togglePower = (id: string) => {
+  fetch(`/api/device/${id}/toggle`, {
+    method: "POST",
+  });
+};
+
 export default function Device({ params: { id } }: { params: { id: string } }) {
   const [brightness, setBrightness] = useState(50);
   const [hsva, setHsva] = useState({ h: 214, s: 43, v: 90, a: 1 });
@@ -116,7 +135,11 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
         <div className="flex flex-col gap-10 justify-center">
           <BrightnessSlider onValueChange={setBrightness} value={brightness} />
           <div className="flex justify-center">
-            <Button size={"lg"} className="px-2 w-16 h-16 rounded-full">
+            <Button
+              size={"lg"}
+              onClick={() => togglePower(id)}
+              className="px-2 w-16 h-16 rounded-full"
+            >
               <HiPower className="w-8 h-8" />
             </Button>
           </div>
