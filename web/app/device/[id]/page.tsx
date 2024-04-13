@@ -76,7 +76,7 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
 
   return (
     <main className="h-full flex flex-col justify-between">
-      <div className="p-5"></div>
+      <div></div>
       <div className="bg-white rounded-t-[2rem] p-5 flex justify-between flex-col shadow-xl">
         <Tabs defaultValue="white" className="h-full">
           <div className="flex justify-center">
