@@ -2,8 +2,9 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { FastAverageColor } from "fast-average-color";
+import { Button } from "@/components/ui/button";
 const VideoColorExtractor = () => {
-  const videoRef = useRef(null);
+  const videoRef = useRef<null | HTMLVideoElement>(null);
   const [color, setColor] = useState("null");
 
   useEffect(() => {
@@ -14,6 +15,8 @@ const VideoColorExtractor = () => {
       if (!video.paused && !video.ended) {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
+
+        if (!ctx) return;
 
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
@@ -27,7 +30,7 @@ const VideoColorExtractor = () => {
         });
         setColor(avg.hex);
         console.log(avg.hex);
-        
+
         requestAnimationFrame(getDominantColor);
       }
     };
@@ -43,36 +46,26 @@ const VideoColorExtractor = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const getStream = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: false,
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error("Error accessing screen capture:", error);
+  const getStream = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
       }
-    };
-
-    getStream();
-
-    // Clean up
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, []);
+    } catch (error) {
+      console.error("Error accessing screen capture:", error);
+    }
+  };
 
   return (
     <div className="h-screen w-screen" style={{ background: color }}>
       <video ref={videoRef} controls autoPlay>
         Your browser does not support the video tag.
       </video>
+      <Button onClick={() => getStream()}>Get Video</Button>
     </div>
   );
 };
