@@ -3,8 +3,12 @@
 import React, { useRef, useEffect, useState } from "react";
 import { FastAverageColor } from "fast-average-color";
 import { Button } from "@/components/ui/button";
+import useWebSocket from "react-use-websocket";
 const VideoColorExtractor = () => {
   const videoRef = useRef<null | HTMLVideoElement>(null);
+//   const { sendMessage, lastMessage, readyState } = useWebSocket(
+//     "ws://localhost:5005/ws?id=68d560c40a24&type=remote"
+//   );
   const [color, setColor] = useState("null");
 
   useEffect(() => {
