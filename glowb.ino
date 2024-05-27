@@ -1,15 +1,52 @@
+#include <Adafruit_NeoPixel.h>
 #include <WebSocketsClient.h>
 #include <WiFiManager.h>
 
 #include "ArduinoJson.h"
 
+#define LED_PIN 27
+#define BUTTON_PIN 26
+#define BUTTON_LED_PIN 15
+#define MIC_PIN 25
+
+enum Mode {
+    BLINK,
+    FADE,
+    RAINBOW,
+    MIC
+};
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(144, LED_PIN, NEO_RGBW + NEO_KHZ800);
+
 String hostname = "glowb";
+int brightness = 20;
+bool isOn = true;
+uint8_t r = 0;
+uint8_t g = 0;
+uint8_t b = 0;
+uint8_t w = 0;
 
 const uint8_t size = JSON_OBJECT_SIZE(5);
 
 WebSocketsClient ws;
 StaticJsonDocument<size> data;
 StaticJsonDocument<size> res;
+
+void fadeIn() {
+    for (int i = 0; i < 256; i++) {
+        strip.setBrightness(i);
+        strip.show();
+        delay(10);
+    }
+}
+
+void fadeOut() {
+    for (int i = 255; i >= 0; i--) {
+        strip.setBrightness(i);
+        strip.show();
+        delay(10);
+    }
+}
 
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
     String resString;
@@ -27,23 +64,70 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         case WStype_TEXT:
             deserializeJson(data, payload);
 
-            res["type"] = "ack";
-            res["message"] = data["message"];
+            if (data["type"] == "ON") {
+                isOn = true;
+            } else if (data["type"] == "OFF") {
+                isOn = false;
+            } else if (data["type"] == "TOGGLE_POWER") {
+                isOn = !isOn;
+                res["type"] = "ACK_TOGGLE_POWER";
+                res["message"] = "Power toggled";
 
-            serializeJson(res, resString);
+                serializeJson(res, resString);
+                // send message to server
+                ws.sendTXT(resString);
+            } else if (data["type"] == "brightness") {
+                brightness = data["value"];
+            } else if (data["type"] == "color") {
+                r = data["r"];
+                g = data["g"];
+                b = data["b"];
+                w = data["w"];
+            } else if (data["type"] == "mode") {
+                if (data["value"] == "blink") {
+                    // mode = BLINK;
+                } else if (data["value"] == "fade") {
+                    // mode = FADE;
+                } else if (data["value"] == "rainbow") {
+                    // mode = RAINBOW;
+                } else if (data["value"] == "mic") {
+                    // mode = MIC;
+                }
+            } else if (data["type"] == "mic") {
+                // mode = MIC;
+            } else if (data["type"] == "status") {
+                res["type"] = "status";
+                res["isOn"] = isOn;
+                res["brightness"] = brightness;
+                res["r"] = r;
+                res["g"] = g;
+                res["b"] = b;
+                res["w"] = w;
 
-            // send message to server
-            ws.sendTXT(resString);
+                serializeJson(res, resString);
 
-            digitalWrite(2, HIGH);
-            delay(500);
-            digitalWrite(2, LOW);
+                // send message to server
+                ws.sendTXT(resString);
+            } else {
+                res["type"] = "error";
+                res["message"] = "Invalid type";
+
+                serializeJson(res, resString);
+
+                // send message to server
+                ws.sendTXT(resString);
+            }
 
             break;
         case WStype_ERROR:
             break;
     }
 }
+
+uint8_t btnPrev;
+unsigned long pressStartTime = 0;
+unsigned long longPressDuration = 1000;
+bool longPressHandled = false;
 
 void setup() {
     WiFi.mode(WIFI_STA);
@@ -52,7 +136,14 @@ void setup() {
     WiFiManager wm;
 
     pinMode(2, OUTPUT);
+    pinMode(BUTTON_LED_PIN, OUTPUT);
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(MIC_PIN, INPUT);
 
+    strip.begin();
+
+    btnPrev = digitalRead(BUTTON_PIN);
     // wm.resetSettings();
 
     bool res = wm.autoConnect("Glowb Setup");
@@ -77,5 +168,42 @@ void setup() {
 }
 
 void loop() {
+    bool btnState = digitalRead(BUTTON_PIN);
+
+    if (btnState == LOW && btnPrev == HIGH) {  // Button press detected
+        pressStartTime = millis();             // Record the time when the button is pressed
+        longPressHandled = false;
+    }
+
+    if (btnState == LOW && btnPrev == LOW) {  // Button is being held down
+        unsigned long pressDuration = millis() - pressStartTime;
+
+        if (pressDuration >= longPressDuration && !longPressHandled) {  // Long press detected
+            Serial.println("Button long pressed");
+            Serial.println(isOn);
+
+            isOn = !isOn;
+
+            longPressHandled = true;
+            Serial.println(pressDuration);
+        }
+    }
+
+    if (btnState == HIGH && btnPrev == LOW) {  // Button release detected
+        pressStartTime = 0;                    // Reset the press start time
+    }
+
+    btnPrev = btnState;  // Save the current button state for the next loop
+
+    if (isOn) {
+        w = 255;
+    } else {
+        w = 0;
+    }
+
+    strip.fill(strip.Color(r, g, b, w));
+
+    // Serial.println(digitalRead(BUTTON_PIN));
     ws.loop();
+    strip.show();
 }

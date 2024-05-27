@@ -27,7 +27,7 @@ export default function Layout({
 }>) {
   const name = "Nadine❤️";
   return (
-    <div className="h-[100dvh] flex flex-col bg-gradient-to-t from-[#A1C398] to-[#C6EBC5]">
+    <div className="h-[100dvh] flex flex-col">
       <nav className="flex justify-between items-center p-5">
         <Link
           href="/"
