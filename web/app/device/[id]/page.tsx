@@ -16,8 +16,16 @@ import {
 import Wheel from "@uiw/react-color-wheel";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { useDebounce, useDebouncedCallback } from "use-debounce";
-import converter, { rgb } from "color-convert";
+import { useDebouncedCallback } from "use-debounce";
+
+enum Mode {
+  NONE,
+  BLINK,
+  FADE,
+  RAINBOW,
+  MIC,
+  CANDLE,
+}
 
 const WHITE_TONES = [
   {
@@ -36,22 +44,22 @@ const SCENES = [
   {
     name: "Love",
     icon: <HiHeart className="text-xl" />,
-    id: "love",
+    id: Mode.CANDLE,
   },
   {
     name: "Concentrate",
     icon: <HiAcademicCap className="text-xl" />,
-    id: "concentrate",
+    id: Mode.NONE,
   },
   {
     name: "Energize",
     icon: <HiBolt className="text-xl" />,
-    id: "energize",
+    id: Mode.NONE,
   },
   {
     name: "Reading",
     icon: <HiBookOpen className="text-xl" />,
-    id: "reading",
+    id: Mode.NONE,
   },
 ];
 
@@ -82,6 +90,18 @@ const setColor = (
     },
     body: JSON.stringify({
       ...color,
+    }),
+  });
+};
+
+const setMode = (mode: Mode, id: string) => {
+  fetch(`/api/device/${id}/mode`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      mode,
     }),
   });
 };
@@ -148,10 +168,11 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
             </TabsContent>
             <TabsContent value="scenes" className="flex justify-center">
               <div className="grid grid-cols-2 gap-4">
-                {SCENES.map((scene) => (
+                {SCENES.map((scene, i) => (
                   <Button
-                    key={scene.id}
+                    key={i}
                     size={"lg"}
+                    onClick={() => setMode(scene.id, id)}
                     variant={"secondary"}
                     className="flex flex-col items-start gap-2 p-4 rounded-[0.5rem] w-full h-20 scale-100 active:scale-95 transition-transform"
                   >

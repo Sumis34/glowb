@@ -10,13 +10,15 @@
 #define MIC_PIN 25
 
 enum Mode {
+    NONE,
     BLINK,
     FADE,
     RAINBOW,
-    MIC
+    MIC,
+    CANDLE
 };
 
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(144, LED_PIN, NEO_RGBW + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(109, LED_PIN, NEO_RGBW + NEO_KHZ800);
 
 String hostname = "glowb";
 int brightness = 20;
@@ -25,6 +27,7 @@ uint8_t r = 0;
 uint8_t g = 0;
 uint8_t b = 0;
 uint8_t w = 100;
+Mode mode = NONE;
 
 const uint8_t size = JSON_OBJECT_SIZE(40);
 
@@ -94,16 +97,28 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
 
                 serializeJson(res, resString);
                 ws.sendTXT(resString);
-            } else if (data["type"] == "mode") {
-                if (data["value"] == "blink") {
-                    // mode = BLINK;
-                } else if (data["value"] == "fade") {
-                    // mode = FADE;
-                } else if (data["value"] == "rainbow") {
-                    // mode = RAINBOW;
-                } else if (data["value"] == "mic") {
-                    // mode = MIC;
+            } else if (data["type"] == "MODE") {
+                Mode selectedMode = data["value"];
+
+                if (selectedMode == mode) {
+                    mode = NONE;
+                    res["type"] = "ACK_MODE";
+                    res["message"] = "Mode was active, turned of";
+                } else if (selectedMode == BLINK) {
+                    mode = BLINK;
+                } else if (selectedMode == FADE) {
+                    mode = FADE;
+                } else if (selectedMode == RAINBOW) {
+                    mode = RAINBOW;
+                } else if (selectedMode == CANDLE) {
+                    mode = CANDLE;
+                } else {
+                    res["type"] = "ERROR";
+                    res["message"] = "Invalid mode";
                 }
+
+                serializeJson(res, resString);
+                ws.sendTXT(resString);
             } else if (data["type"] == "mic") {
                 // mode = MIC;
             } else if (data["type"] == "status") {
@@ -207,9 +222,22 @@ void loop() {
     btnPrev = btnState;  // Save the current button state for the next loop
 
     if (isOn) {
-        strip.fill(strip.Color(g, r, b, w));
+        switch (mode) {
+            case CANDLE:
+                for (int i = 0; i < strip.numPixels(); i++) {
+                    int flicker = random(0, 255);
+                    strip.setPixelColor(i, strip.Color(0, 0, 0, flicker));
+                    strip.show();
+                }
+                break;
+
+            default:
+                strip.fill(strip.Color(g, r, b, w));
+                break;
+        }
         strip.setBrightness(brightness);
     } else {
+        mode = NONE;
         strip.clear();
     }
 

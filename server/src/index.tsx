@@ -80,14 +80,30 @@ app.post("/device/:id/color", async (c) => {
     w: Math.max(0, Math.min(body.w, 255)),
   };
 
-  console.log("color", colors);
-  
-
   client.ws.send(
     JSON.stringify({
       time: new Date().toISOString(),
       type: "COLOR",
       ...colors,
+    })
+  );
+
+  return c.json({ id });
+});
+
+app.post("/device/:id/mode", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const client = clients.find((c) => c.id === id);
+
+  if (!client) return c.status(404);
+
+console.log("mode", body.mode);
+
+  client.ws.send(
+    JSON.stringify({
+      type: "MODE",
+      value: body.mode,
     })
   );
 
