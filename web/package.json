@@ -19,6 +19,7 @@
     "@uiw/react-color-wheel": "^2.1.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "color-convert": "^2.0.1",
     "fast-average-color": "^9.4.0",
     "next": "14.1.4",
     "react": "^18",
@@ -27,9 +28,11 @@
     "react-use-websocket": "^4.8.1",
     "tailwind-merge": "^2.2.2",
     "tailwindcss-animate": "^1.0.7",
+    "use-debounce": "^10.0.1",
     "vaul": "^0.9.0"
   },
   "devDependencies": {
+    "@types/color-convert": "^2.0.3",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

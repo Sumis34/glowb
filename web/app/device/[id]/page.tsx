@@ -16,14 +16,18 @@ import {
 import Wheel from "@uiw/react-color-wheel";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { useDebounce, useDebouncedCallback } from "use-debounce";
+import converter, { rgb } from "color-convert";
 
 const WHITE_TONES = [
   {
     displayColor: "#fefae0",
     color: { h: 60, s: 100, v: 100, a: 1 },
+    rgbw: { r: 0, g: 0, b: 0, w: 255 },
   },
   {
     displayColor: "#bde0fe",
+    rgbw: { r: 254, g: 250, b: 224, w: 0 },
     color: { h: 208, s: 97, v: 87, a: 1 },
   },
 ];
@@ -51,8 +55,24 @@ const SCENES = [
   },
 ];
 
-const sendColor = (
-  color: { h: number; s: number; v: number; a: number },
+const togglePower = (id: string) => {
+  fetch(`/api/device/${id}/toggle`, {
+    method: "POST",
+  });
+};
+
+const setDeviceBrightness = (brightness: number, id: string) => {
+  fetch(`/api/device/${id}/brightness`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ brightness }),
+  });
+};
+
+const setColor = (
+  color: { r: number; g: number; b: number; w: number },
   id: string
 ) => {
   fetch(`/api/device/${id}/color`, {
@@ -60,19 +80,23 @@ const sendColor = (
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(color),
-  });
-};
-
-const togglePower = (id: string) => {
-  fetch(`/api/device/${id}/toggle`, {
-    method: "POST",
+    body: JSON.stringify({
+      ...color,
+    }),
   });
 };
 
 export default function Device({ params: { id } }: { params: { id: string } }) {
   const [brightness, setBrightness] = useState(50);
   const [hsva, setHsva] = useState({ h: 214, s: 43, v: 90, a: 1 });
+
+  const debouncedBrightness = useDebouncedCallback((value) => {
+    setDeviceBrightness(value, id);
+  }, 100);
+
+  const debouncedColor = useDebouncedCallback((color) => {
+    setColor(color, id);
+  }, 10);
 
   return (
     <main className="h-full flex flex-col justify-between">
@@ -90,7 +114,11 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
             <TabsContent value="color" className="flex justify-center">
               <Wheel
                 color={hsva}
-                onChange={(color) => setHsva({ ...hsva, ...color.hsva })}
+                onChange={(color) => {
+                  const newColor = { ...hsva, ...color.hsva };
+                  setHsva(newColor);
+                  debouncedColor({ ...color.rgb, w: 0 });
+                }}
               />
             </TabsContent>
             <TabsContent value="white" className="flex justify-center">
@@ -98,7 +126,10 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
                 {WHITE_TONES.map((tone) => (
                   <div
                     key={tone.displayColor}
-                    onClick={() => setHsva(tone.color)}
+                    onClick={() => {
+                      setHsva(tone.color);
+                      debouncedColor(tone.rgbw);
+                    }}
                     className="w-20 h-20"
                   >
                     <RadioGroupItem
@@ -133,7 +164,13 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
           </div>
         </Tabs>
         <div className="flex flex-col gap-10 justify-center">
-          <BrightnessSlider onValueChange={setBrightness} value={brightness} />
+          <BrightnessSlider
+            onValueChange={(b) => {
+              setBrightness(b);
+              debouncedBrightness(b);
+            }}
+            value={brightness}
+          />
           <div className="flex justify-center">
             <Button
               size={"lg"}

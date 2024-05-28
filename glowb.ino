@@ -24,9 +24,9 @@ bool isOn = true;
 uint8_t r = 0;
 uint8_t g = 0;
 uint8_t b = 0;
-uint8_t w = 0;
+uint8_t w = 100;
 
-const uint8_t size = JSON_OBJECT_SIZE(5);
+const uint8_t size = JSON_OBJECT_SIZE(40);
 
 WebSocketsClient ws;
 StaticJsonDocument<size> data;
@@ -76,13 +76,24 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
                 serializeJson(res, resString);
                 // send message to server
                 ws.sendTXT(resString);
-            } else if (data["type"] == "brightness") {
+            } else if (data["type"] == "BRIGHTNESS") {
                 brightness = data["value"];
-            } else if (data["type"] == "color") {
+
+                res["type"] = "ACK_BRIGHTNESS";
+                res["message"] = "Set brightness to " + String(brightness);
+
+                serializeJson(res, resString);
+                ws.sendTXT(resString);
+            } else if (data["type"] == "COLOR") {
                 r = data["r"];
                 g = data["g"];
                 b = data["b"];
                 w = data["w"];
+
+                res["type"] = "ACK_COLOR";
+
+                serializeJson(res, resString);
+                ws.sendTXT(resString);
             } else if (data["type"] == "mode") {
                 if (data["value"] == "blink") {
                     // mode = BLINK;
@@ -196,12 +207,11 @@ void loop() {
     btnPrev = btnState;  // Save the current button state for the next loop
 
     if (isOn) {
-        w = 255;
+        strip.fill(strip.Color(g, r, b, w));
+        strip.setBrightness(brightness);
     } else {
-        w = 0;
+        strip.clear();
     }
-
-    strip.fill(strip.Color(r, g, b, w));
 
     // Serial.println(digitalRead(BUTTON_PIN));
     ws.loop();

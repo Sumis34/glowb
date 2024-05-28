@@ -50,6 +50,50 @@ app.post("/device/:id/toggle", (c) => {
   return c.json({ id });
 });
 
+app.post("/device/:id/brightness", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const client = clients.find((c) => c.id === id);
+  if (client) {
+    client.ws.send(
+      JSON.stringify({
+        time: new Date().toISOString(),
+        type: "BRIGHTNESS",
+        value: Math.max(0, Math.min(body.brightness, 100)),
+      })
+    );
+  }
+  return c.json({ id });
+});
+
+app.post("/device/:id/color", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const client = clients.find((c) => c.id === id);
+
+  if (!client) return c.status(404);
+
+  const colors = {
+    r: Math.max(0, Math.min(body.r, 255)),
+    g: Math.max(0, Math.min(body.g, 255)),
+    b: Math.max(0, Math.min(body.b, 255)),
+    w: Math.max(0, Math.min(body.w, 255)),
+  };
+
+  console.log("color", colors);
+  
+
+  client.ws.send(
+    JSON.stringify({
+      time: new Date().toISOString(),
+      type: "COLOR",
+      ...colors,
+    })
+  );
+
+  return c.json({ id });
+});
+
 app.get(
   "/ws",
   upgradeWebSocket((c) => {
