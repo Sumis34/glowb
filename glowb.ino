@@ -136,6 +136,8 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
                     lastLoveClick = millis();
                     loveActive = true;
                     mode = LOVE;
+                } else if (selectedMode == MIC) {
+                    mode = MIC;
                 } else {
                     res["type"] = "ERROR";
                     res["message"] = "Invalid mode";
@@ -194,10 +196,6 @@ void love() {
         rValue = constrain(map(normalizedTime * (maxDuration - fadeInDuration), 0, (maxDuration - fadeInDuration), 255, 0), 0, 255);
     }
 
-    // Use rValue to set the LED brightness
-
-    Serial.println(rValue);
-
     w = 0;
     r = rValue;
     g = 0;
@@ -213,6 +211,33 @@ void love() {
         loveActive = false;
         mode = oldMode;
     }
+}
+
+const int sampleWindow = 50;  // Sample window width in mS (50 mS = 20Hz)      // Preamp output pin connected to A0
+unsigned int sample;
+
+void micMode() {
+    unsigned long startMillis = millis();  // Start of sample window
+    unsigned int peakToPeak = 0;           // peak-to-peak level
+
+    unsigned int signalMax = 0;
+    unsigned int signalMin = 1024;
+
+    // collect data for 50 mS and then plot data
+    while (millis() - startMillis < sampleWindow) {
+        sample = analogRead(MIC_PIN);
+        if (sample < 1024)  // toss out spurious readings
+        {
+            if (sample > signalMax) {
+                signalMax = sample;  // save just the max levels
+            } else if (sample < signalMin) {
+                signalMin = sample;  // save just the min levels
+            }
+        }
+    }
+    peakToPeak = signalMax - signalMin;  // max - min = peak-peak amplitude
+    Serial.println(peakToPeak);
+    strip.fill(strip.Color(0, 0, 0, peakToPeak));
 }
 
 void buttonSinglePress() {
@@ -304,6 +329,9 @@ void loop() {
                     strip.show();
                 }
                 break;
+            case MIC:
+                micMode();
+                break;
             case LOVE:
                 // Love mode is handled in the main loop to allow activation if led's are off
                 break;
@@ -315,6 +343,12 @@ void loop() {
     } else if (!loveActive) {
         mode = NONE;
         strip.clear();
+    }
+
+    if (ws.isConnected()){
+        digitalWrite(BUTTON_LED_PIN, LOW);
+    } else {
+        digitalWrite(BUTTON_LED_PIN, HIGH);
     }
 
     // Serial.println(digitalRead(BUTTON_PIN));

@@ -8,9 +8,11 @@ import {
   HiAcademicCap,
   HiBolt,
   HiBookOpen,
+  HiFire,
   HiHandRaised,
   HiHeart,
   HiPower,
+  HiSpeakerWave,
   HiSun,
 } from "react-icons/hi2";
 import Wheel from "@uiw/react-color-wheel";
@@ -48,14 +50,14 @@ const SCENES = [
     id: Mode.LOVE,
   },
   {
-    name: "Concentrate",
-    icon: <HiAcademicCap className="text-xl" />,
+    name: "Candle",
+    icon: <HiFire className="text-xl" />,
     id: Mode.CANDLE,
   },
   {
-    name: "Energize",
-    icon: <HiBolt className="text-xl" />,
-    id: Mode.NONE,
+    name: "Sound",
+    icon: <HiSpeakerWave className="text-xl" />,
+    id: Mode.MIC,
   },
   {
     name: "Reading",
