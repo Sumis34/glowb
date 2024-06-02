@@ -15,7 +15,8 @@ enum Mode {
     FADE,
     RAINBOW,
     MIC,
-    CANDLE
+    CANDLE,
+    LOVE
 };
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(109, LED_PIN, NEO_RGBW + NEO_KHZ800);
@@ -27,7 +28,16 @@ uint8_t r = 0;
 uint8_t g = 0;
 uint8_t b = 0;
 uint8_t w = 100;
+
+// Previous values of the color to restore in case of destructive mode change
+uint8_t oldR = 0;
+uint8_t oldG = 0;
+uint8_t oldB = 0;
+uint8_t oldW = 0;
+
 Mode mode = NONE;
+
+unsigned long lastLoveClick = 0;
 
 const uint8_t size = JSON_OBJECT_SIZE(40);
 
@@ -100,6 +110,12 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
             } else if (data["type"] == "MODE") {
                 Mode selectedMode = data["value"];
 
+                // Safe color values before changing mode
+                oldR = r;
+                oldG = g;
+                oldB = b;
+                oldW = w;
+
                 if (selectedMode == mode) {
                     mode = NONE;
                     res["type"] = "ACK_MODE";
@@ -112,6 +128,9 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
                     mode = RAINBOW;
                 } else if (selectedMode == CANDLE) {
                     mode = CANDLE;
+                } else if (selectedMode == LOVE) {
+                    lastLoveClick = millis();
+                    mode = LOVE;
                 } else {
                     res["type"] = "ERROR";
                     res["message"] = "Invalid mode";
@@ -230,7 +249,29 @@ void loop() {
                     strip.show();
                 }
                 break;
+            case LOVE: {
+                long maxDuration = 1000;
+                long currentDuration = millis() - lastLoveClick;
 
+                long rValue = constrain(map(currentDuration, 0, maxDuration, 255, 0), 0, 255);
+
+                Serial.println(rValue);
+
+                w = 0;
+                r = rValue;
+                g = 0;
+                b = 0;
+
+                strip.fill(strip.Color(g, r, b, w));
+
+                if (currentDuration >= maxDuration) {
+                    mode = NONE;
+                    w = oldW;
+                    r = oldR;
+                    g = oldG;
+                    b = oldB;
+                }
+            }
             default:
                 strip.fill(strip.Color(g, r, b, w));
                 break;

@@ -25,6 +25,7 @@ enum Mode {
   RAINBOW,
   MIC,
   CANDLE,
+  LOVE
 }
 
 const WHITE_TONES = [
@@ -44,12 +45,12 @@ const SCENES = [
   {
     name: "Love",
     icon: <HiHeart className="text-xl" />,
-    id: Mode.CANDLE,
+    id: Mode.LOVE,
   },
   {
     name: "Concentrate",
     icon: <HiAcademicCap className="text-xl" />,
-    id: Mode.NONE,
+    id: Mode.CANDLE,
   },
   {
     name: "Energize",
