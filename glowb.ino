@@ -16,7 +16,8 @@ enum Mode {
     RAINBOW,
     MIC,
     CANDLE,
-    LOVE
+    LOVE,
+    MODE_COUNT
 };
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(109, LED_PIN, NEO_RGBW + NEO_KHZ800);
@@ -36,8 +37,10 @@ uint8_t oldB = 0;
 uint8_t oldW = 0;
 
 Mode mode = NONE;
+Mode oldMode = NONE;
 
 unsigned long lastLoveClick = 0;
+bool loveActive = false;
 
 const uint8_t size = JSON_OBJECT_SIZE(40);
 
@@ -115,6 +118,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
                 oldG = g;
                 oldB = b;
                 oldW = w;
+                oldMode = mode;
 
                 if (selectedMode == mode) {
                     mode = NONE;
@@ -130,6 +134,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
                     mode = CANDLE;
                 } else if (selectedMode == LOVE) {
                     lastLoveClick = millis();
+                    loveActive = true;
                     mode = LOVE;
                 } else {
                     res["type"] = "ERROR";
@@ -167,6 +172,51 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         case WStype_ERROR:
             break;
     }
+}
+
+void love() {
+    long fadeInDuration = 200;
+    long maxDuration = 1000 + fadeInDuration;
+    long currentDuration = millis() - lastLoveClick;
+    long rValue;
+
+    if (currentDuration < fadeInDuration) {
+        // Fast fade-in phase
+        float normalizedTime = (float)currentDuration / fadeInDuration;
+        normalizedTime = constrain(normalizedTime, 0.0, 1.0);
+        normalizedTime = sqrt(normalizedTime);
+        rValue = constrain(map(normalizedTime * fadeInDuration, 0, fadeInDuration, 0, 255), 0, 255);
+    } else {
+        // Slow fade-out phase
+        float normalizedTime = (float)(currentDuration - fadeInDuration) / (maxDuration - fadeInDuration);
+        normalizedTime = constrain(normalizedTime, 0.0, 1.0);
+        normalizedTime = sqrt(normalizedTime);
+        rValue = constrain(map(normalizedTime * (maxDuration - fadeInDuration), 0, (maxDuration - fadeInDuration), 255, 0), 0, 255);
+    }
+
+    // Use rValue to set the LED brightness
+
+    Serial.println(rValue);
+
+    w = 0;
+    r = rValue;
+    g = 0;
+    b = 0;
+
+    strip.fill(strip.Color(g, r, b, w));
+
+    if (currentDuration >= maxDuration) {
+        w = oldW;
+        r = oldR;
+        g = oldG;
+        b = oldB;
+        loveActive = false;
+        mode = oldMode;
+    }
+}
+
+void buttonSinglePress() {
+    mode = static_cast<Mode>((mode + 1) % MODE_COUNT);
 }
 
 uint8_t btnPrev;
@@ -218,6 +268,7 @@ void loop() {
     if (btnState == LOW && btnPrev == HIGH) {  // Button press detected
         pressStartTime = millis();             // Record the time when the button is pressed
         longPressHandled = false;
+        buttonSinglePress();
     }
 
     if (btnState == LOW && btnPrev == LOW) {  // Button is being held down
@@ -240,6 +291,10 @@ void loop() {
 
     btnPrev = btnState;  // Save the current button state for the next loop
 
+    if (loveActive) {
+        love();
+    }
+
     if (isOn) {
         switch (mode) {
             case CANDLE:
@@ -249,35 +304,15 @@ void loop() {
                     strip.show();
                 }
                 break;
-            case LOVE: {
-                long maxDuration = 1000;
-                long currentDuration = millis() - lastLoveClick;
-
-                long rValue = constrain(map(currentDuration, 0, maxDuration, 255, 0), 0, 255);
-
-                Serial.println(rValue);
-
-                w = 0;
-                r = rValue;
-                g = 0;
-                b = 0;
-
-                strip.fill(strip.Color(g, r, b, w));
-
-                if (currentDuration >= maxDuration) {
-                    mode = NONE;
-                    w = oldW;
-                    r = oldR;
-                    g = oldG;
-                    b = oldB;
-                }
-            }
+            case LOVE:
+                // Love mode is handled in the main loop to allow activation if led's are off
+                break;
             default:
                 strip.fill(strip.Color(g, r, b, w));
                 break;
         }
         strip.setBrightness(brightness);
-    } else {
+    } else if (!loveActive) {
         mode = NONE;
         strip.clear();
     }
