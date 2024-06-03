@@ -5,12 +5,11 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import {
-  HiAcademicCap,
-  HiBolt,
   HiBookOpen,
   HiFire,
-  HiHandRaised,
   HiHeart,
+  HiOutlineClock,
+  HiOutlineHeart,
   HiPower,
   HiSpeakerWave,
   HiSun,
@@ -19,6 +18,8 @@ import Wheel from "@uiw/react-color-wheel";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useDebouncedCallback } from "use-debounce";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import Timer from "@/components/timer";
 
 enum Mode {
   NONE,
@@ -27,7 +28,7 @@ enum Mode {
   RAINBOW,
   MIC,
   CANDLE,
-  LOVE
+  LOVE,
 }
 
 const WHITE_TONES = [
@@ -195,7 +196,16 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
             }}
             value={brightness}
           />
-          <div className="flex justify-center">
+          <div className="flex justify-center items-center gap-3">
+            <div className="hidden">
+              <Button
+                size={"lg"}
+                className="w-10 h-10 px-2 rounded-full"
+                variant="outline"
+              >
+                <HiOutlineHeart className="w-4 h-4" />
+              </Button>
+            </div>
             <Button
               size={"lg"}
               onClick={() => togglePower(id)}
@@ -203,6 +213,24 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
             >
               <HiPower className="w-8 h-8" />
             </Button>
+            <div className="hidden">
+              <Drawer>
+                <DrawerTrigger asChild>
+                  <Button
+                    size={"lg"}
+                    className="w-10 h-10 px-2 rounded-full"
+                    variant="outline"
+                  >
+                    <HiOutlineClock className="w-4 h-4" />
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <div className="mx-auto w-full max-w-sm">
+                    <Timer id={id} />
+                  </div>
+                </DrawerContent>
+              </Drawer>
+            </div>
           </div>
         </div>
       </div>

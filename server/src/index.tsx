@@ -1,11 +1,18 @@
 import { Hono } from "hono";
 import { createBunWebSocket } from "hono/bun";
 import { WSContext } from "hono/ws";
+import * as schedule from "node-schedule";
+
+interface Action {
+  action: string;
+  time: string;
+  days: number[];
+}
 
 const app = new Hono();
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 
-const clients: { id: string; ws: WSContext }[] = [];
+const clients: { id: string; ws: WSContext; actions: schedule.Job[] }[] = [];
 
 app.get("/", (c) => {
   return c.html(
@@ -98,7 +105,7 @@ app.post("/device/:id/mode", async (c) => {
 
   if (!client) return c.status(404);
 
-console.log("mode", body.mode);
+  console.log("mode", body.mode);
 
   client.ws.send(
     JSON.stringify({
@@ -109,6 +116,49 @@ console.log("mode", body.mode);
 
   return c.json({ id });
 });
+
+// app.post("/device/:id/schedule", async (c) => {
+//   console.log("schedule");
+  
+//   const id = c.req.param("id");
+//   const body = await c.req.json();
+//   const client = clients.find((c) => c.id === id);
+
+//   if (!client) return c.status(404);
+
+//   if (!body?.action || !body?.time || !body?.days) return c.status(400);
+
+//   const min = parseInt(body.time.split(":")[1]);
+//   const hour = parseInt(body.time.split(":")[0]);
+
+//   const rule = new schedule.RecurrenceRule();
+//   rule.dayOfWeek = body.days;
+//   rule.hour = hour;
+//   rule.minute = min;
+
+//   console.log(rule);
+  
+
+//   const job = schedule.scheduleJob(rule, () => {
+//     if (body.action === "on") {
+//       client.ws.send(
+//         JSON.stringify({
+//           type: "ON",
+//         })
+//       );
+//     } else if (body.action === "off") {
+//       client.ws.send(
+//         JSON.stringify({
+//           type: "OFF",
+//         })
+//       );
+//     }
+//   });
+
+//   client.actions.push(job);
+
+//   return c.json({ id });
+// });
 
 app.get(
   "/ws",
@@ -122,6 +172,7 @@ app.get(
         const client = {
           id: ws.url?.searchParams.get("id") as string,
           ws,
+          actions: [],
         };
 
         clients.splice(clients.indexOf(client), 1);
