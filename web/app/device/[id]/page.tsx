@@ -63,7 +63,7 @@ const SCENES = [
   {
     name: "Reading",
     icon: <HiBookOpen className="text-xl" />,
-    id: Mode.NONE,
+    id: Mode.RAINBOW,
   },
 ];
 

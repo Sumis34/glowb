@@ -8,6 +8,7 @@
 #define BUTTON_PIN 26
 #define BUTTON_LED_PIN 15
 #define MIC_PIN 25
+#define NUM_PIXELS 109
 
 enum Mode {
     NONE,
@@ -20,7 +21,7 @@ enum Mode {
     MODE_COUNT
 };
 
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(109, LED_PIN, NEO_RGBW + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, LED_PIN, NEO_RGBW + NEO_KHZ800);
 
 String hostname = "glowb";
 int brightness = 20;
@@ -41,6 +42,11 @@ Mode oldMode = NONE;
 
 unsigned long lastLoveClick = 0;
 bool loveActive = false;
+
+// Rainbow
+int rainbowColorOffset = 0;
+unsigned long lastRainbowUpdate = 0;
+int rainbowInterval = 100;
 
 const uint8_t size = JSON_OBJECT_SIZE(40);
 
@@ -213,6 +219,23 @@ void love() {
     }
 }
 
+void rainbow() {
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - lastRainbowUpdate >= rainbowInterval) {
+        lastRainbowUpdate = currentMillis;
+        for (int i = 0; i < NUM_PIXELS; i += 10) {
+            int pixelHue = (i * 65536L / NUM_PIXELS / 10 + rainbowColorOffset) % 65536L;
+            uint32_t color = strip.ColorHSV(pixelHue);
+            for (int j = 0; j < 10 && (i + j) < NUM_PIXELS; j++) {
+                strip.setPixelColor(i + j, color);
+            }
+        }
+        rainbowColorOffset = (rainbowColorOffset + 256) % 65536L;
+        strip.show();
+    }
+}
+
 const int sampleWindow = 50;  // Sample window width in mS (50 mS = 20Hz)      // Preamp output pin connected to A0
 unsigned int sample;
 
@@ -335,6 +358,9 @@ void loop() {
             case LOVE:
                 // Love mode is handled in the main loop to allow activation if led's are off
                 break;
+            case RAINBOW:
+                rainbow();
+                break;
             default:
                 strip.fill(strip.Color(g, r, b, w));
                 break;
@@ -345,7 +371,7 @@ void loop() {
         strip.clear();
     }
 
-    if (ws.isConnected()){
+    if (ws.isConnected()) {
         digitalWrite(BUTTON_LED_PIN, LOW);
     } else {
         digitalWrite(BUTTON_LED_PIN, HIGH);
