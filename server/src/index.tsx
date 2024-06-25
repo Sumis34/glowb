@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { createBunWebSocket } from "hono/bun";
 import { WSContext } from "hono/ws";
 import * as schedule from "node-schedule";
+import { logger } from "hono/logger";
 
 interface Action {
   action: string;
@@ -14,6 +15,7 @@ const { upgradeWebSocket, websocket } = createBunWebSocket();
 
 const clients: { id: string; ws: WSContext; actions: schedule.Job[] }[] = [];
 
+app.use(logger());
 app.get("/", (c) => {
   return c.html(
     <html>
@@ -119,7 +121,7 @@ app.post("/device/:id/mode", async (c) => {
 
 // app.post("/device/:id/schedule", async (c) => {
 //   console.log("schedule");
-  
+
 //   const id = c.req.param("id");
 //   const body = await c.req.json();
 //   const client = clients.find((c) => c.id === id);
@@ -137,7 +139,6 @@ app.post("/device/:id/mode", async (c) => {
 //   rule.minute = min;
 
 //   console.log(rule);
-  
 
 //   const job = schedule.scheduleJob(rule, () => {
 //     if (body.action === "on") {

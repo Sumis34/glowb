@@ -9,6 +9,7 @@
 #define BUTTON_LED_PIN 15
 #define MIC_PIN 25
 #define NUM_PIXELS 109
+#define USE_SERIAL Serial
 
 enum Mode {
     NONE,
@@ -24,7 +25,6 @@ enum Mode {
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, LED_PIN, NEO_RGBW + NEO_KHZ800);
 
 String hostname = "glowb";
-const String endpoint = "glowb.noekrebs.ch";
 int brightness = 20;
 bool isOn = true;
 uint8_t r = 0;
@@ -75,12 +75,14 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
     String resString;
     switch (type) {
         case WStype_DISCONNECTED:
-
+            USE_SERIAL.printf("[WSc] Disconnected!\n");
             break;
         case WStype_CONNECTED:
             res["type"] = "ack";
             res["message"] = "connected";
 
+            USE_SERIAL.printf("[WSc] Connected to url: %s\n", payload);
+            
             serializeJson(res, resString);
             ws.sendTXT(resString);
             break;
@@ -179,6 +181,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
 
             break;
         case WStype_ERROR:
+            USE_SERIAL.printf("[WSc] Error: %s\n", payload);
             break;
     }
 }
@@ -302,7 +305,12 @@ void setup() {
 
     String macAddress = String(ESP.getEfuseMac(), HEX);
 
-    ws.begin(endpoint, 5005, "/ws?id=" + macAddress);
+    // DEV MODE
+    //  ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
+
+    // PROD MODE
+    const char* url = ("/ws?id=" + macAddress).c_str();
+    ws.beginSSL("glowb.noekrebs.ch", 443, url);
 
     // event handler
     ws.onEvent(webSocketEvent);
