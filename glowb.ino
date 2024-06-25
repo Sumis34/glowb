@@ -24,6 +24,7 @@ enum Mode {
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, LED_PIN, NEO_RGBW + NEO_KHZ800);
 
 String hostname = "glowb";
+const String endpoint = "glowb.noekrebs.ch";
 int brightness = 20;
 bool isOn = true;
 uint8_t r = 0;
@@ -301,7 +302,7 @@ void setup() {
 
     String macAddress = String(ESP.getEfuseMac(), HEX);
 
-    ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
+    ws.begin(endpoint, 5005, "/ws?id=" + macAddress);
 
     // event handler
     ws.onEvent(webSocketEvent);
