@@ -25,7 +25,7 @@ export default function Layout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const name = "Nadine❤️";
+  const name = "Glowb One";
   return (
     <div className="h-[100dvh] flex flex-col">
       <nav className="flex justify-between items-center p-5">
