@@ -49,6 +49,10 @@ int rainbowColorOffset = 0;
 unsigned long lastRainbowUpdate = 0;
 int rainbowInterval = 100;
 
+//Status update
+unsigned long lastStatusUpdate = 0;
+unsigned long statusInterval = 5000;
+
 const uint8_t size = JSON_OBJECT_SIZE(40);
 
 WebSocketsClient ws;
@@ -69,6 +73,25 @@ void fadeOut() {
         strip.show();
         delay(10);
     }
+}
+
+void setClock() {
+    configTime(0, 0, "europe.pool.ntp.org");
+
+    USE_SERIAL.print(F("Waiting for NTP time sync: "));
+    time_t nowSecs = time(nullptr);
+    while(nowSecs < 8 * 3600 * 2) {
+        delay(500);
+        USE_SERIAL.print(F("."));
+        yield();
+        nowSecs = time(nullptr);
+    }
+
+    USE_SERIAL.println();
+    struct tm timeinfo;
+    gmtime_r(&nowSecs, &timeinfo);
+    USE_SERIAL.print(F("Current time: "));
+    USE_SERIAL.print(asctime(&timeinfo));
 }
 
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
@@ -305,12 +328,13 @@ void setup() {
 
     String macAddress = String(ESP.getEfuseMac(), HEX);
 
+    setClock();
+
     // DEV MODE
-    //  ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
+    ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
 
     // PROD MODE
-    const char* url = ("/ws?id=" + macAddress).c_str();
-    ws.beginSSL("glowb.noekrebs.ch", 443, url);
+    // ws.beginSSL("glowb.on.shiper.app", 443, "/ws?id=" + macAddress);
 
     // event handler
     ws.onEvent(webSocketEvent);
@@ -384,6 +408,28 @@ void loop() {
         digitalWrite(BUTTON_LED_PIN, LOW);
     } else {
         digitalWrite(BUTTON_LED_PIN, HIGH);
+    }
+
+    if (millis() - lastStatusUpdate > statusInterval) {
+        StaticJsonDocument<JSON_OBJECT_SIZE(40)> res;
+        String resString;
+
+        if (isOn) {
+            res["type"] = "STATUS";
+            res["isOn"] = isOn;
+            res["brightness"] = brightness;
+            res["r"] = r;
+            res["g"] = g;
+            res["b"] = b;
+            res["w"] = w;
+        } else {
+            res["type"] = "status";
+            res["isOn"] = isOn;
+        }
+
+        serializeJson(res, resString);
+        ws.sendTXT(resString);
+        lastStatusUpdate = millis();
     }
 
     // Serial.println(digitalRead(BUTTON_PIN));

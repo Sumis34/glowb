@@ -110,6 +110,11 @@ const setMode = (mode: Mode, id: string) => {
   });
 };
 
+const getStatus = async (id: string) => {
+  const response = await fetch(`/api/device/${id}/status`);
+  return response.json();
+}
+
 export default function Device({ params: { id } }: { params: { id: string } }) {
   const [brightness, setBrightness] = useState(50);
   const [hsva, setHsva] = useState({ h: 214, s: 43, v: 90, a: 1 });

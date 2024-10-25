@@ -13,7 +13,21 @@ interface Action {
 const app = new Hono();
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 
-const clients: { id: string; ws: WSContext; actions: schedule.Job[] }[] = [];
+const clients: {
+  id: string;
+  ws: WSContext;
+  actions: schedule.Job[];
+  status?: {
+    type: string;
+    isOn: boolean;
+    brightness: number;
+    r: number;
+    g: number;
+    b: number;
+    w: number;
+    timestamp: string;
+  };
+}[] = [];
 
 app.use(logger());
 app.get("/", (c) => {
@@ -23,22 +37,7 @@ app.get("/", (c) => {
         <meta charset="UTF-8" />
       </head>
       <body>
-        <div id="now-time"></div>
-        <button id="btn">Send Message</button>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-        const ws = new WebSocket('ws://localhost:5005/ws?id=' + Math.random())
-        const $nowTime = document.getElementById('now-time')
-        ws.onmessage = (event) => {
-          $nowTime.textContent = event.data
-        }
-        document.getElementById('btn').addEventListener('click', () => {
-          ws.send("Hello World")
-        })
-        `,
-          }}
-        ></script>
+        <p>Glowb API</p>
       </body>
     </html>
   );
@@ -100,14 +99,23 @@ app.post("/device/:id/color", async (c) => {
   return c.json({ id });
 });
 
+app.get("/device/:id/status", async (c) => {
+  const id = c.req.param("id");
+  console.log(id);
+
+  const client = clients.find((c) => c.id === id);
+
+  if (!client) return c.status(404);
+
+  return c.json(client.status || {});
+});
+
 app.post("/device/:id/mode", async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json();
   const client = clients.find((c) => c.id === id);
 
   if (!client) return c.status(404);
-
-  console.log("mode", body.mode);
 
   client.ws.send(
     JSON.stringify({
@@ -180,7 +188,30 @@ app.get(
         clients.push(client);
       },
       onMessage(_event, ws) {
-        console.log(JSON.parse(_event.data.toString()));
+        const client = clients.find(
+          (c) => c.id === ws.url?.searchParams.get("id")
+        );
+
+        if (!client) return;
+
+        const index = clients.indexOf(client);
+
+        const data = JSON.parse(_event.data.toString());
+
+        if (data.type === "STATUS") {
+          clients[index].status = {
+            type: data.type,
+            isOn: data.isOn,
+            brightness: data.brightness,
+            r: data.r,
+            g: data.g,
+            b: data.b,
+            w: data.w,
+            timestamp: new Date().getTime().toString(),
+          };
+        } else {
+          console.log(data);
+        }
       },
       onError(evt, ws) {
         console.error(evt);
