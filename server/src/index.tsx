@@ -101,7 +101,6 @@ app.post("/device/:id/color", async (c) => {
 
 app.get("/device/:id/status", async (c) => {
   const id = c.req.param("id");
-  console.log(id);
 
   const client = clients.find((c) => c.id === id);
 

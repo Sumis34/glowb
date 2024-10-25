@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   HiBookOpen,
   HiFire,
@@ -119,6 +119,7 @@ const getStatus = async (id: string) => {
 export default function Device({ params: { id } }: { params: { id: string } }) {
   const [brightness, setBrightness] = useState(50);
   const [hsva, setHsva] = useState({ h: 214, s: 43, v: 90, a: 1 });
+  const [connectedTime, setConnectedTime] = useState(0);
 
   const debouncedBrightness = useDebouncedCallback((value) => {
     setDeviceBrightness(value, id);
@@ -127,6 +128,15 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
   const debouncedColor = useDebouncedCallback((color) => {
     setColor(color, id);
   }, 10);
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const { brightness, color, timestamp } = await getStatus(id);
+      console.log(timestamp);
+      return () => clearInterval(interval);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [connectedTime, setBrightness, setConnectedTime, id]);
 
   return (
     <main className="h-full flex flex-col justify-between">

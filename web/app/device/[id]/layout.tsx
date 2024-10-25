@@ -12,10 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import {
-  HiLink,
-  HiOutlineHome,
-} from "react-icons/hi2";
+import { HiLink, HiOutlineHome } from "react-icons/hi2";
 
 export default function Layout({
   children,
@@ -26,7 +23,7 @@ export default function Layout({
   return (
     <div className="dark">
       <div className="h-[100dvh] flex flex-col dark:bg-neutral-950 text-foreground">
-        <nav className="flex justify-between items-center p-5">
+        <nav className="flex justify-between items-center p-5 relative">
           <Link
             href="/"
             className={cn(
@@ -37,7 +34,16 @@ export default function Layout({
             <HiOutlineHome className="text-2xl" />
             {/* <HiLink className="text-2xl" /> */}
           </Link>
-          <h1 className="font-extrabold text-xl">Glowb</h1>
+          <div>
+            <div className="relative inset-0 flex items-center justify-center -top-28">
+              <div className="rounded-full w-52 h-52 blur-3xl absolute dark:bg-neutral-300/60"></div>
+            </div>
+
+            <h1 className="text-xs border-border border px-2 py-0.5 rounded-full bg-neutral-900 flex items-center gap-1">
+              {/* <div className="w-2 h-2 bg-green-400 rounded-full"></div> */}
+              Glowb
+            </h1>
+          </div>
           <Drawer>
             <DrawerTrigger asChild>
               <Button

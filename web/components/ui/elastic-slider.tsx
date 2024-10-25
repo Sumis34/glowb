@@ -55,7 +55,7 @@ export default function ElasticSlider({
       onTouchEnd={() => animate(scale, 1)}
       style={{
         scale,
-        opacity: useTransform(scale, [1, 1.2], [0.7, 1]),
+        opacity: useTransform(scale, [1, 1.2], [0.9, 1]),
       }}
       className="flex w-full touch-none select-none items-center justify-center gap-3"
     >

@@ -328,7 +328,7 @@ void setup() {
 
     String macAddress = String(ESP.getEfuseMac(), HEX);
 
-    setClock();
+    // setClock();
 
     // DEV MODE
     ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
