@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { useDebouncedCallback } from "use-debounce";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import Timer from "@/components/timer";
+import ElasticSlider from "@/components/ui/elastic-slider";
 
 enum Mode {
   NONE,
@@ -113,7 +114,7 @@ const setMode = (mode: Mode, id: string) => {
 const getStatus = async (id: string) => {
   const response = await fetch(`/api/device/${id}/status`);
   return response.json();
-}
+};
 
 export default function Device({ params: { id } }: { params: { id: string } }) {
   const [brightness, setBrightness] = useState(50);
@@ -130,7 +131,7 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
   return (
     <main className="h-full flex flex-col justify-between">
       <div></div>
-      <div className="bg-white rounded-t-[2rem] p-5 flex justify-between flex-col shadow-2xl">
+      <div className="bg-neutral-900 rounded-t-[2rem] p-5 flex justify-between flex-col shadow-2xl">
         <Tabs defaultValue="white" className="h-full">
           <div className="flex justify-center">
             <TabsList>
@@ -169,7 +170,7 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
                     <Label
                       htmlFor={tone.displayColor}
                       style={{ backgroundColor: tone.displayColor }}
-                      className="w-full h-full rounded-full shadow-lg shadow-gray-200/40 block peer-data-[state=checked]:scale-125 scale-100 transition-transform"
+                      className="w-full h-full rounded-full shadow-lg shadow-neutral-200/40 dark:shadow-neutral-500/40 block peer-data-[state=checked]:scale-125 scale-100 transition-transform"
                     ></Label>
                   </div>
                 ))}
@@ -194,12 +195,12 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
           </div>
         </Tabs>
         <div className="flex flex-col gap-10 justify-center">
-          <BrightnessSlider
+          <ElasticSlider
+            value={brightness}
             onValueChange={(b) => {
               setBrightness(b);
               debouncedBrightness(b);
             }}
-            value={brightness}
           />
           <div className="flex justify-center items-center gap-3">
             <div className="hidden">
