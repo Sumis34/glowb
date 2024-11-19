@@ -13,7 +13,7 @@ export default function Home() {
         <h2 className="text-2xl font-bold mt-10">Devices</h2>
         <p className="mt-1 text-muted-foreground text-sm">
           To link a device, scan the QR code on the device or enter the device
-          ID
+          ID in the url bar. /device/:id
         </p>
       </div>
     </main>

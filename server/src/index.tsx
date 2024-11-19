@@ -67,7 +67,7 @@ app.post("/device/:id/brightness", async (c) => {
       JSON.stringify({
         time: new Date().toISOString(),
         type: "BRIGHTNESS",
-        value: Math.max(0, Math.min(body.brightness, 100)),
+        value: Math.max(5, Math.min(body.brightness, 100)),
       })
     );
   }
@@ -198,6 +198,8 @@ app.get(
         const data = JSON.parse(_event.data.toString());
 
         if (data.type === "STATUS") {
+          console.log(data);
+          
           clients[index].status = {
             type: data.type,
             isOn: data.isOn,
@@ -209,7 +211,7 @@ app.get(
             timestamp: new Date().getTime().toString(),
           };
         } else {
-          console.log(data);
+          console.log({data});
         }
       },
       onError(evt, ws) {

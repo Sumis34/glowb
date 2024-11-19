@@ -49,7 +49,7 @@ int rainbowColorOffset = 0;
 unsigned long lastRainbowUpdate = 0;
 int rainbowInterval = 100;
 
-//Status update
+// Status update
 unsigned long lastStatusUpdate = 0;
 unsigned long statusInterval = 5000;
 
@@ -80,7 +80,7 @@ void setClock() {
 
     USE_SERIAL.print(F("Waiting for NTP time sync: "));
     time_t nowSecs = time(nullptr);
-    while(nowSecs < 8 * 3600 * 2) {
+    while (nowSecs < 8 * 3600 * 2) {
         delay(500);
         USE_SERIAL.print(F("."));
         yield();
@@ -105,7 +105,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
             res["message"] = "connected";
 
             USE_SERIAL.printf("[WSc] Connected to url: %s\n", payload);
-            
+
             serializeJson(res, resString);
             ws.sendTXT(resString);
             break;
@@ -263,6 +263,23 @@ void rainbow() {
     }
 }
 
+void sendStatus() {
+    StaticJsonDocument<JSON_OBJECT_SIZE(40)> statusRes;
+    String statusResString;
+
+    statusRes["type"] = "STATUS";
+    statusRes["isOn"] = isOn;
+    statusRes["brightness"] = brightness;
+    statusRes["mode"] = mode;
+    statusRes["r"] = r;
+    statusRes["g"] = g;
+    statusRes["b"] = b;
+    statusRes["w"] = w;
+
+    serializeJson(statusRes, statusResString);
+    ws.sendTXT(statusResString);
+}
+
 const int sampleWindow = 50;  // Sample window width in mS (50 mS = 20Hz)      // Preamp output pin connected to A0
 unsigned int sample;
 
@@ -276,6 +293,7 @@ void micMode() {
     // collect data for 50 mS and then plot data
     while (millis() - startMillis < sampleWindow) {
         sample = analogRead(MIC_PIN);
+        Serial.println(sample);
         if (sample < 1024)  // toss out spurious readings
         {
             if (sample > signalMax) {
@@ -313,6 +331,9 @@ void setup() {
 
     strip.begin();
 
+    strip.fill(strip.Color(0, 0, 25, 0));
+    strip.show();
+
     btnPrev = digitalRead(BUTTON_PIN);
     // wm.resetSettings();
 
@@ -323,6 +344,7 @@ void setup() {
         // ESP.restart();
     } else {
         // if you get here you have connected to the WiFi
+        strip.fill(strip.Color(0, 0, 0, 0));
         Serial.println("connected...yeey :)");
     }
 
@@ -411,24 +433,7 @@ void loop() {
     }
 
     if (millis() - lastStatusUpdate > statusInterval) {
-        StaticJsonDocument<JSON_OBJECT_SIZE(40)> res;
-        String resString;
-
-        if (isOn) {
-            res["type"] = "STATUS";
-            res["isOn"] = isOn;
-            res["brightness"] = brightness;
-            res["r"] = r;
-            res["g"] = g;
-            res["b"] = b;
-            res["w"] = w;
-        } else {
-            res["type"] = "status";
-            res["isOn"] = isOn;
-        }
-
-        serializeJson(res, resString);
-        ws.sendTXT(resString);
+        sendStatus();
         lastStatusUpdate = millis();
     }
 
