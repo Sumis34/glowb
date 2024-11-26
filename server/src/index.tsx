@@ -63,11 +63,14 @@ app.post("/device/:id/brightness", async (c) => {
   const body = await c.req.json();
   const client = clients.find((c) => c.id === id);
   if (client) {
+    const brightness = Math.max(5, Math.min(body.brightness, 100));
+    const mappedBrightness = Math.round((brightness - 0) * (255 - 5) / (100 - 0) + 5);
+
     client.ws.send(
       JSON.stringify({
-        time: new Date().toISOString(),
-        type: "BRIGHTNESS",
-        value: Math.max(5, Math.min(body.brightness, 100)),
+      time: new Date().toISOString(),
+      type: "BRIGHTNESS",
+      value: mappedBrightness,
       })
     );
   }

@@ -13,10 +13,7 @@
 
 enum Mode {
     NONE,
-    BLINK,
-    FADE,
     RAINBOW,
-    MIC,
     CANDLE,
     LOVE,
     MODE_COUNT
@@ -53,27 +50,12 @@ int rainbowInterval = 100;
 unsigned long lastStatusUpdate = 0;
 unsigned long statusInterval = 5000;
 
+// Websocket
 const uint8_t size = JSON_OBJECT_SIZE(40);
 
 WebSocketsClient ws;
 StaticJsonDocument<size> data;
 StaticJsonDocument<size> res;
-
-void fadeIn() {
-    for (int i = 0; i < 256; i++) {
-        strip.setBrightness(i);
-        strip.show();
-        delay(10);
-    }
-}
-
-void fadeOut() {
-    for (int i = 255; i >= 0; i--) {
-        strip.setBrightness(i);
-        strip.show();
-        delay(10);
-    }
-}
 
 void setClock() {
     configTime(0, 0, "europe.pool.ntp.org");
@@ -117,7 +99,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
             } else if (data["type"] == "OFF") {
                 isOn = false;
             } else if (data["type"] == "TOGGLE_POWER") {
-                isOn = !isOn;
+                toggleOn();
                 res["type"] = "ACK_TOGGLE_POWER";
                 res["message"] = "Power toggled";
 
@@ -133,6 +115,10 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
                 serializeJson(res, resString);
                 ws.sendTXT(resString);
             } else if (data["type"] == "COLOR") {
+                if (!isOn) {
+                    toggleOn();
+                }
+
                 r = data["r"];
                 g = data["g"];
                 b = data["b"];
@@ -156,10 +142,6 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
                     mode = NONE;
                     res["type"] = "ACK_MODE";
                     res["message"] = "Mode was active, turned of";
-                } else if (selectedMode == BLINK) {
-                    mode = BLINK;
-                } else if (selectedMode == FADE) {
-                    mode = FADE;
                 } else if (selectedMode == RAINBOW) {
                     mode = RAINBOW;
                 } else if (selectedMode == CANDLE) {
@@ -168,8 +150,6 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
                     lastLoveClick = millis();
                     loveActive = true;
                     mode = LOVE;
-                } else if (selectedMode == MIC) {
-                    mode = MIC;
                 } else {
                     res["type"] = "ERROR";
                     res["message"] = "Invalid mode";
@@ -317,6 +297,25 @@ unsigned long pressStartTime = 0;
 unsigned long longPressDuration = 1000;
 bool longPressHandled = false;
 
+bool fadeIn = false;
+bool fadeOut = false;
+unsigned long fadeStartTime = 0;
+int fadeDuration = 700;
+int currentBrightness = 0;
+
+void toggleOn() {
+    isOn = !isOn;
+    if (isOn) {
+        fadeIn = true;
+        fadeOut = false;
+        fadeStartTime = millis();
+    } else {
+        fadeOut = true;
+        fadeIn = false;
+        fadeStartTime = millis();
+    }
+}
+
 void setup() {
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(hostname.c_str());
@@ -381,7 +380,7 @@ void loop() {
             Serial.println("Button long pressed");
             Serial.println(isOn);
 
-            isOn = !isOn;
+            toggleOn();
 
             longPressHandled = true;
             Serial.println(pressDuration);
@@ -398,6 +397,32 @@ void loop() {
         love();
     }
 
+    // Handle fade-in and fade-out using sine curve
+    if (fadeIn || fadeOut) {
+        unsigned long elapsedTime = millis() - fadeStartTime;
+        float brightnessLevel = brightness / 255.0;
+        float scaledFadeDuration = fadeDuration * brightnessLevel;
+        float progress = (float)elapsedTime / scaledFadeDuration;  // Calculate progress as a percentage (0.0 to 1.0)
+
+        if (fadeIn) {
+            currentBrightness = int(brightness * sin(progress * (PI / 2)));  // Scale sine curve (0 to brightness)
+            if (elapsedTime >= scaledFadeDuration) {                         // End of fade-in
+                fadeIn = false;
+                currentBrightness = brightness;
+            }
+        } else if (fadeOut) {
+            currentBrightness = int(brightness * sin((1.0 - progress) * (PI / 2)));  // Reverse sine curve
+            if (elapsedTime >= scaledFadeDuration) {                                 // End of fade-out
+                fadeOut = false;
+                strip.clear();
+                currentBrightness = brightness;
+            }
+        }
+        strip.setBrightness(currentBrightness);
+    } else {
+        currentBrightness = brightness;
+    }
+
     if (isOn) {
         switch (mode) {
             case CANDLE:
@@ -406,9 +431,6 @@ void loop() {
                     strip.setPixelColor(i, strip.Color(0, 0, 0, flicker));
                     strip.show();
                 }
-                break;
-            case MIC:
-                micMode();
                 break;
             case LOVE:
                 // Love mode is handled in the main loop to allow activation if led's are off
@@ -420,10 +442,12 @@ void loop() {
                 strip.fill(strip.Color(g, r, b, w));
                 break;
         }
-        strip.setBrightness(brightness);
+        strip.setBrightness(currentBrightness);
     } else if (!loveActive) {
         mode = NONE;
-        strip.clear();
+
+        if (!fadeOut && !fadeIn)
+            strip.clear();
     }
 
     if (ws.isConnected()) {

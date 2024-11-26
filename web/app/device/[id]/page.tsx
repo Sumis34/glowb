@@ -25,10 +25,7 @@ import { LuRainbow } from "react-icons/lu";
 
 enum Mode {
   NONE,
-  BLINK,
-  FADE,
   RAINBOW,
-  MIC,
   CANDLE,
   LOVE,
 }
