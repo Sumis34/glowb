@@ -297,6 +297,9 @@ unsigned long pressStartTime = 0;
 unsigned long longPressDuration = 1000;
 bool longPressHandled = false;
 
+unsigned long veryLongPressDuration = 5000;
+bool veryLongPressHandled = false;
+
 bool fadeIn = false;
 bool fadeOut = false;
 unsigned long fadeStartTime = 0;
@@ -352,10 +355,10 @@ void setup() {
     // setClock();
 
     // DEV MODE
-    ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
+    // ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
 
     // PROD MODE
-    // ws.beginSSL("glowb.on.shiper.app", 443, "/ws?id=" + macAddress);
+    ws.beginSSL("glowb-api.on.shiper.app", 443, "/ws?id=" + macAddress);
 
     // event handler
     ws.onEvent(webSocketEvent);
@@ -370,6 +373,7 @@ void loop() {
     if (btnState == LOW && btnPrev == HIGH) {  // Button press detected
         pressStartTime = millis();             // Record the time when the button is pressed
         longPressHandled = false;
+        veryLongPressHandled = false;
         buttonSinglePress();
     }
 
@@ -383,6 +387,18 @@ void loop() {
             toggleOn();
 
             longPressHandled = true;
+            Serial.println(pressDuration);
+        }
+
+        if (pressDuration >= veryLongPressDuration && !veryLongPressHandled) {  // Very long press detected
+            Serial.println("Button very long pressed");
+            Serial.println(isOn);
+
+            WiFiManager wm;
+            wm.resetSettings();
+            ESP.restart();
+
+            veryLongPressHandled = true;
             Serial.println(pressDuration);
         }
     }
