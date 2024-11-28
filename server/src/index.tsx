@@ -64,13 +64,15 @@ app.post("/device/:id/brightness", async (c) => {
   const client = clients.find((c) => c.id === id);
   if (client) {
     const brightness = Math.max(5, Math.min(body.brightness, 100));
-    const mappedBrightness = Math.round((brightness - 0) * (255 - 5) / (100 - 0) + 5);
+    const mappedBrightness = Math.round(
+      ((brightness - 0) * (255 - 5)) / (100 - 0) + 5
+    );
 
     client.ws.send(
       JSON.stringify({
-      time: new Date().toISOString(),
-      type: "BRIGHTNESS",
-      value: mappedBrightness,
+        time: new Date().toISOString(),
+        type: "BRIGHTNESS",
+        value: mappedBrightness,
       })
     );
   }
@@ -159,7 +161,7 @@ app.get(
         const data = JSON.parse(_event.data.toString());
 
         if (data.type === "STATUS") {
-          console.info(`Status received from ${client.id}`);          
+          console.info(`Status received from ${client.id}`);
           clients[index].status = {
             type: data.type,
             isOn: data.isOn,
@@ -171,16 +173,15 @@ app.get(
             timestamp: new Date().getTime().toString(),
           };
         } else {
-          console.log({data});
+          console.log({ data });
         }
       },
       onError(evt, ws) {
         console.error(evt);
       },
       onClose(_event, ws) {
-        console.log("close");
-
         const id = ws.url?.searchParams.get("id");
+        console.info(`Client disconnected: ${id}, WS Code: ${_event.code}`);
 
         const index = clients.findIndex(
           (c) => c.ws.url?.searchParams.get("id") === id
