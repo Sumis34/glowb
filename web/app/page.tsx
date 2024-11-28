@@ -2,7 +2,7 @@ import { HiArrowRight } from "react-icons/hi2";
 
 export default function Home() {
   return (
-    <main className="flex justify-center h-screen p-12">
+    <main className="flex justify-center min-h-screen p-12">
       <div className="relative flex-col max-w-screen-md flex">
         <h1 className="text-5xl font-extrabold relative">Glowb💡</h1>
         <p className="mt-2 text-muted-foreground">

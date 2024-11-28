@@ -21,7 +21,7 @@ enum Mode {
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, LED_PIN, NEO_RGBW + NEO_KHZ800);
 
-String hostname = "glowb";
+String hostname = "glowb2";
 int brightness = 20;
 bool isOn = true;
 uint8_t r = 0;

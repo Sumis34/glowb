@@ -129,48 +129,6 @@ app.post("/device/:id/mode", async (c) => {
   return c.json({ id });
 });
 
-// app.post("/device/:id/schedule", async (c) => {
-//   console.log("schedule");
-
-//   const id = c.req.param("id");
-//   const body = await c.req.json();
-//   const client = clients.find((c) => c.id === id);
-
-//   if (!client) return c.status(404);
-
-//   if (!body?.action || !body?.time || !body?.days) return c.status(400);
-
-//   const min = parseInt(body.time.split(":")[1]);
-//   const hour = parseInt(body.time.split(":")[0]);
-
-//   const rule = new schedule.RecurrenceRule();
-//   rule.dayOfWeek = body.days;
-//   rule.hour = hour;
-//   rule.minute = min;
-
-//   console.log(rule);
-
-//   const job = schedule.scheduleJob(rule, () => {
-//     if (body.action === "on") {
-//       client.ws.send(
-//         JSON.stringify({
-//           type: "ON",
-//         })
-//       );
-//     } else if (body.action === "off") {
-//       client.ws.send(
-//         JSON.stringify({
-//           type: "OFF",
-//         })
-//       );
-//     }
-//   });
-
-//   client.actions.push(job);
-
-//   return c.json({ id });
-// });
-
 app.get(
   "/ws",
   upgradeWebSocket((c) => {
@@ -201,8 +159,7 @@ app.get(
         const data = JSON.parse(_event.data.toString());
 
         if (data.type === "STATUS") {
-          console.log(data);
-          
+          console.info(`Status received from ${client.id}`);          
           clients[index].status = {
             type: data.type,
             isOn: data.isOn,

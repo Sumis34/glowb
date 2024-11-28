@@ -22,7 +22,7 @@ export default function Layout({
   const name = "";
   return (
     <div className="dark">
-      <div className="h-[100dvh] flex flex-col dark:bg-neutral-950 text-foreground">
+      <div className="h-[100dvh] w-screen overflow-hidden flex flex-col dark:bg-neutral-950 text-foreground">
         <nav className="flex justify-between items-center p-5 relative">
           <Link
             href="/"
