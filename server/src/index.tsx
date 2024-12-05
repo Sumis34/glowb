@@ -17,6 +17,7 @@ const clients: {
   id: string;
   ws: WSContext;
   actions: schedule.Job[];
+  pingJob: schedule.Job;
   status?: {
     type: string;
     isOn: boolean;
@@ -30,20 +31,8 @@ const clients: {
 }[] = [];
 
 app.use(logger());
-app.get("/", (c) => {
-  return c.html(
-    <html>
-      <head>
-        <meta charset="UTF-8" />
-      </head>
-      <body>
-        <p>Glowb API</p>
-      </body>
-    </html>
-  );
-});
 
-app.get("/clients", (c) => {
+app.get("/device", (c) => {
   return c.json({ clients: clients.map((c) => c.id) });
 });
 
@@ -114,6 +103,18 @@ app.get("/device/:id/status", async (c) => {
   return c.json(client.status || {});
 });
 
+app.get("/device/:id/disconnect", async (c) => {
+  const id = c.req.param("id");
+
+  const client = clients.find((c) => c.id === id);
+
+  if (!client) return c.status(404);
+
+  client.ws.close();
+
+  return c.json({ id });
+});
+
 app.post("/device/:id/mode", async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json();
@@ -140,9 +141,14 @@ app.get(
           return ws.close();
         }
 
+        const reconnectJob = schedule.scheduleJob("0 */30 * * * *", () => {
+          ws.close();
+        });
+
         const client = {
           id: ws.url?.searchParams.get("id") as string,
           ws,
+          pingJob: reconnectJob,
           actions: [],
         };
 
@@ -154,7 +160,7 @@ app.get(
           (c) => c.id === ws.url?.searchParams.get("id")
         );
 
-        if (!client) return;
+        if (!client) return ws.close();
 
         const index = clients.indexOf(client);
 
@@ -186,6 +192,8 @@ app.get(
         const index = clients.findIndex(
           (c) => c.ws.url?.searchParams.get("id") === id
         );
+
+        clients[index].pingJob.cancel();
 
         clients.splice(index, 1);
       },

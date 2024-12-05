@@ -52,6 +52,7 @@ unsigned long statusInterval = 5000;
 
 // Websocket
 const uint8_t size = JSON_OBJECT_SIZE(40);
+unsigned long lastPingReceived = 0;
 
 WebSocketsClient ws;
 StaticJsonDocument<size> data;
@@ -98,6 +99,11 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
                 isOn = true;
             } else if (data["type"] == "OFF") {
                 isOn = false;
+            } else if (data["type"] == "PING") {
+                res["type"] = "PONG";
+                serializeJson(res, resString);
+                ws.sendTXT(resString);
+                lastPingReceived = millis();
             } else if (data["type"] == "TOGGLE_POWER") {
                 toggleOn();
                 res["type"] = "ACK_TOGGLE_POWER";
@@ -260,34 +266,6 @@ void sendStatus() {
     ws.sendTXT(statusResString);
 }
 
-const int sampleWindow = 50;  // Sample window width in mS (50 mS = 20Hz)      // Preamp output pin connected to A0
-unsigned int sample;
-
-void micMode() {
-    unsigned long startMillis = millis();  // Start of sample window
-    unsigned int peakToPeak = 0;           // peak-to-peak level
-
-    unsigned int signalMax = 0;
-    unsigned int signalMin = 1024;
-
-    // collect data for 50 mS and then plot data
-    while (millis() - startMillis < sampleWindow) {
-        sample = analogRead(MIC_PIN);
-        Serial.println(sample);
-        if (sample < 1024)  // toss out spurious readings
-        {
-            if (sample > signalMax) {
-                signalMax = sample;  // save just the max levels
-            } else if (sample < signalMin) {
-                signalMin = sample;  // save just the min levels
-            }
-        }
-    }
-    peakToPeak = signalMax - signalMin;  // max - min = peak-peak amplitude
-    Serial.println(peakToPeak);
-    strip.fill(strip.Color(0, 0, 0, peakToPeak));
-}
-
 void buttonSinglePress() {
     mode = static_cast<Mode>((mode + 1) % MODE_COUNT);
 }
@@ -321,7 +299,6 @@ void toggleOn() {
 
 void setup() {
     WiFi.mode(WIFI_STA);
-    WiFi.setHostname(hostname.c_str());
     Serial.begin(115200);
     WiFiManager wm;
 
@@ -355,16 +332,19 @@ void setup() {
     // setClock();
 
     // DEV MODE
-    // ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
+    ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
 
     // PROD MODE
-    ws.beginSSL("glowb-api.on.shiper.app", 443, "/ws?id=" + macAddress);
+    // ws.beginSSL("glowb-api.on.shiper.app", 443, "/ws?id=" + macAddress);
 
     // event handler
     ws.onEvent(webSocketEvent);
 
+    lastPingReceived = millis();
+
     // try ever 5000 again if connection has failed
     ws.setReconnectInterval(5000);
+    ws.enableHeartbeat(10000, 3000, 2);
 }
 
 void loop() {
