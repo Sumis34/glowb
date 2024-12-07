@@ -5,11 +5,13 @@ import useController from "@/lib/hooks/useController";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { LuLoader2 } from "react-icons/lu";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
 
 export default function Home() {
   const controller = useController({});
 
-  console.log(controller);
+  const devices = useLiveQuery(() => db.devices.toArray(), []);
 
   return (
     <main className="flex justify-center min-h-screen p-12 bg-neutral-200">
@@ -47,6 +49,35 @@ export default function Home() {
               </div>
             )}
           </div>
+          {devices && devices.length > 0 && (
+            <>
+              <h2 className="mt-5 font-bold text-sm">Recent Connections</h2>
+              <div className="mt-2 w-full space-y-3">
+                {devices.map((device) => (
+                  <div
+                    key={device.id}
+                    className="bg-neutral-200 w-full p-3 border border-neutral-300 rounded-xl flex flex-col"
+                  >
+                    {" "}
+                    <div className="text-sm flex justify-between items-center">
+                      <div>
+                        <div>
+                          <div>Glowb One</div>
+                          <p className="text-muted-foreground">{device.mac}</p>
+                        </div>
+                      </div>
+                      <Link
+                        href={`/device/${device.mac}`}
+                        className={cn(buttonVariants())}
+                      >
+                        Connect
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </main>

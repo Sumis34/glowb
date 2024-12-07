@@ -37,6 +37,7 @@ import useController, { Mode } from "@/lib/hooks/useController";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { db } from "@/lib/db";
 
 const WHITE_TONES = [
   {
@@ -79,6 +80,7 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
   const [hsva, setHsva] = useState({ h: 214, s: 43, v: 90, a: 1 });
   const [isOn, setIsOn] = useState(false);
   const controller = useController({ id });
+  const [lastStatus, setLastStatus] = useState<null | string>(null);
 
   const debouncedBrightness = useDebouncedCallback((value) => {
     controller.setBrightness(value);
@@ -93,8 +95,24 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
       const { brightness, color, timestamp, isOn } = await getStatus(id);
 
       setBrightness(brightness);
+      setLastStatus(timestamp);
       setIsOn(isOn);
     };
+
+    const saveDevice = async () => {
+      await db.transaction("rw", db.devices, async () => {
+        const device = await db.devices.where("mac").equals(id).first();
+
+        if (!device) {
+          console.log("Adding new device:", id);
+          await db.devices.add({ mac: id });
+        } else {
+          console.log("Device already exists:", device);
+        }
+      });
+    };
+
+    saveDevice();
     sync();
   }, [id]);
 
@@ -136,7 +154,7 @@ export default function Device({ params: { id } }: { params: { id: string } }) {
               <DrawerDescription>
                 {controller.local.isAvailable
                   ? "A Local connection is available"
-                  : "No local connection available, using remote"}
+                  : "No local connection available, using remote"}{" "}
               </DrawerDescription>
             </DrawerHeader>
             <div className="px-4">
