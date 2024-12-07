@@ -1,5 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <WebSocketsClient.h>
+#include <WebSocketsServer.h>
 #include <WiFiManager.h>
 
 #include "ArduinoJson.h"
@@ -55,6 +56,7 @@ const uint8_t size = JSON_OBJECT_SIZE(40);
 unsigned long lastPingReceived = 0;
 
 WebSocketsClient ws;
+WebSocketsServer wsServer = WebSocketsServer(81);
 StaticJsonDocument<size> data;
 StaticJsonDocument<size> res;
 
@@ -79,6 +81,7 @@ void setClock() {
 
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
     String resString;
+    String resText;
     switch (type) {
         case WStype_DISCONNECTED:
             USE_SERIAL.printf("[WSc] Disconnected!\n");
@@ -93,106 +96,129 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
             ws.sendTXT(resString);
             break;
         case WStype_TEXT:
-            deserializeJson(data, payload);
-
-            if (data["type"] == "ON") {
-                isOn = true;
-            } else if (data["type"] == "OFF") {
-                isOn = false;
-            } else if (data["type"] == "PING") {
-                res["type"] = "PONG";
-                serializeJson(res, resString);
-                ws.sendTXT(resString);
-                lastPingReceived = millis();
-            } else if (data["type"] == "TOGGLE_POWER") {
-                toggleOn();
-                res["type"] = "ACK_TOGGLE_POWER";
-                res["message"] = "Power toggled";
-
-                serializeJson(res, resString);
-                // send message to server
-                ws.sendTXT(resString);
-            } else if (data["type"] == "BRIGHTNESS") {
-                brightness = data["value"];
-
-                res["type"] = "ACK_BRIGHTNESS";
-                res["message"] = "Set brightness to " + String(brightness);
-
-                serializeJson(res, resString);
-                ws.sendTXT(resString);
-            } else if (data["type"] == "COLOR") {
-                if (!isOn) {
-                    toggleOn();
-                }
-
-                r = data["r"];
-                g = data["g"];
-                b = data["b"];
-                w = data["w"];
-
-                res["type"] = "ACK_COLOR";
-
-                serializeJson(res, resString);
-                ws.sendTXT(resString);
-            } else if (data["type"] == "MODE") {
-                Mode selectedMode = data["value"];
-
-                // Safe color values before changing mode
-                oldR = r;
-                oldG = g;
-                oldB = b;
-                oldW = w;
-                oldMode = mode;
-
-                if (selectedMode == mode) {
-                    mode = NONE;
-                    res["type"] = "ACK_MODE";
-                    res["message"] = "Mode was active, turned of";
-                } else if (selectedMode == RAINBOW) {
-                    mode = RAINBOW;
-                } else if (selectedMode == CANDLE) {
-                    mode = CANDLE;
-                } else if (selectedMode == LOVE) {
-                    lastLoveClick = millis();
-                    loveActive = true;
-                    mode = LOVE;
-                } else {
-                    res["type"] = "ERROR";
-                    res["message"] = "Invalid mode";
-                }
-
-                serializeJson(res, resString);
-                ws.sendTXT(resString);
-            } else if (data["type"] == "mic") {
-                // mode = MIC;
-            } else if (data["type"] == "status") {
-                res["type"] = "status";
-                res["isOn"] = isOn;
-                res["brightness"] = brightness;
-                res["r"] = r;
-                res["g"] = g;
-                res["b"] = b;
-                res["w"] = w;
-
-                serializeJson(res, resString);
-
-                // send message to server
-                ws.sendTXT(resString);
-            } else {
-                res["type"] = "error";
-                res["message"] = "Invalid type";
-
-                serializeJson(res, resString);
-
-                // send message to server
-                ws.sendTXT(resString);
-            }
-
+            resText = webSocketPayloadHandler(payload);
+            ws.sendTXT(resText);
             break;
         case WStype_ERROR:
             USE_SERIAL.printf("[WSc] Error: %s\n", payload);
             break;
     }
+}
+
+void webSocketServerEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+    String resText;
+    switch (type) {
+        case WStype_DISCONNECTED:
+            USE_SERIAL.printf("[%u] Disconnected!\n", num);
+            break;
+        case WStype_CONNECTED: {
+            IPAddress ip = wsServer.remoteIP(num);
+            USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+            wsServer.sendTXT(num, "Connected");
+        } break;
+        case WStype_TEXT:
+            USE_SERIAL.printf("[%u] Got text");
+            resText = webSocketPayloadHandler(payload);
+            wsServer.sendTXT(num, resText);
+            break;
+        case WStype_ERROR:
+        case WStype_FRAGMENT_TEXT_START:
+        case WStype_FRAGMENT_BIN_START:
+        case WStype_FRAGMENT:
+        case WStype_FRAGMENT_FIN:
+            break;
+    }
+}
+
+String webSocketPayloadHandler(uint8_t* payload) {
+    String resString;
+    deserializeJson(data, payload);
+
+    if (data["type"] == "ON") {
+        isOn = true;
+    } else if (data["type"] == "OFF") {
+        isOn = false;
+    } else if (data["type"] == "PING") {
+        res["type"] = "PONG";
+        res["message"] = String(ESP.getEfuseMac(), HEX);;
+        serializeJson(res, resString);
+        lastPingReceived = millis();
+    } else if (data["type"] == "TOGGLE_POWER") {
+        toggleOn();
+        res["type"] = "ACK_TOGGLE_POWER";
+        res["message"] = "Power toggled";
+
+        serializeJson(res, resString);
+    } else if (data["type"] == "BRIGHTNESS") {
+        brightness = data["value"];
+
+        res["type"] = "ACK_BRIGHTNESS";
+        res["message"] = "Set brightness to " + String(brightness);
+
+        serializeJson(res, resString);
+    } else if (data["type"] == "COLOR") {
+        if (!isOn) {
+            toggleOn();
+        }
+
+        r = data["r"];
+        g = data["g"];
+        b = data["b"];
+        w = data["w"];
+
+        res["type"] = "ACK_COLOR";
+
+        serializeJson(res, resString);
+    } else if (data["type"] == "MODE") {
+        Mode selectedMode = data["value"];
+
+        // Safe color values before changing mode
+        oldR = r;
+        oldG = g;
+        oldB = b;
+        oldW = w;
+        oldMode = mode;
+
+        if (selectedMode == mode) {
+            mode = NONE;
+            res["type"] = "ACK_MODE";
+            res["message"] = "Mode was active, turned of";
+        } else if (selectedMode == RAINBOW) {
+            mode = RAINBOW;
+        } else if (selectedMode == CANDLE) {
+            mode = CANDLE;
+        } else if (selectedMode == LOVE) {
+            lastLoveClick = millis();
+            loveActive = true;
+            mode = LOVE;
+        } else {
+            res["type"] = "ERROR";
+            res["message"] = "Invalid mode";
+        }
+
+        serializeJson(res, resString);
+    } else if (data["type"] == "mic") {
+        // mode = MIC;
+    } else if (data["type"] == "status") {
+        res["type"] = "status";
+        res["isOn"] = isOn;
+        res["brightness"] = brightness;
+        res["r"] = r;
+        res["g"] = g;
+        res["b"] = b;
+        res["w"] = w;
+
+        serializeJson(res, resString);
+
+        // send message to server
+        ws.sendTXT(resString);
+    } else {
+        res["type"] = "error";
+        res["message"] = "Invalid type";
+
+        serializeJson(res, resString);
+    }
+    return resString;
 }
 
 void love() {
@@ -337,6 +363,10 @@ void setup() {
     // PROD MODE
     // ws.beginSSL("glowb-api.on.shiper.app", 443, "/ws?id=" + macAddress);
 
+    // Websocket server for local control
+    wsServer.begin();
+    wsServer.onEvent(webSocketServerEvent);
+
     // event handler
     ws.onEvent(webSocketEvent);
 
@@ -459,5 +489,6 @@ void loop() {
 
     // Serial.println(digitalRead(BUTTON_PIN));
     ws.loop();
+    wsServer.loop();
     strip.show();
 }
