@@ -1,3 +1,5 @@
+#include <ESPmDNS.h>
+
 #include <Adafruit_NeoPixel.h>
 #include <WebSocketsClient.h>
 #include <WebSocketsServer.h>
@@ -375,6 +377,10 @@ void setup() {
     // try ever 5000 again if connection has failed
     ws.setReconnectInterval(5000);
     ws.enableHeartbeat(10000, 3000, 2);
+
+    if (!MDNS.begin(hostname)) {
+        Serial.println("Failed to start mDNS");
+    }
 }
 
 void loop() {

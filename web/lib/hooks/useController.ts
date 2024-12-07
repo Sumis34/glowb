@@ -68,7 +68,7 @@ export default function useController({
   id?: string;
   host?: string;
 }) {
-  const [socketUrl] = useState(`ws://${host ?? "192.168.1.121"}:81`);
+  const [socketUrl] = useState(`ws://${host ?? "glowb2.local"}:81`);
 
   const [deviceId, setDeviceId] = useState(id);
 

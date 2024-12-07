@@ -217,6 +217,7 @@
                 "C:\\Users\\noekr\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.11\\tools\\sdk\\esp32\\qio_qspi\\include",
                 "C:\\Users\\noekr\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.11\\cores\\esp32",
                 "C:\\Users\\noekr\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.11\\variants\\esp32",
+                "C:\\Users\\noekr\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.11\\libraries\\ESPmDNS\\src",
                 "C:\\Users\\noekr\\Documents\\Arduino\\libraries\\Adafruit_NeoPixel",
                 "C:\\Users\\noekr\\Documents\\Arduino\\libraries\\WebSockets\\src",
                 "C:\\Users\\noekr\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\2.0.11\\libraries\\WiFi\\src",
