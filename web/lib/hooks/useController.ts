@@ -107,6 +107,12 @@ export default function useController({
         return;
       }
 
+      if (modes[mode] !== CommandType.LOVE_MODE) {
+        cmd.send(client, deviceId, {
+          type: CommandType.ON,
+        });
+      }
+
       await cmd.send(client, deviceId, {
         version: 1,
         type: modes[mode], // Assuming 0 is the type for mode
@@ -143,6 +149,10 @@ export default function useController({
       }
 
       cmd.send(client, deviceId, {
+        type: CommandType.ON,
+      });
+
+      cmd.send(client, deviceId, {
         type: CommandType.BRIGHTNESS,
         value: brightness,
       });
@@ -156,6 +166,10 @@ export default function useController({
         console.error("MQTT client is not connected");
         return;
       }
+
+      cmd.send(client, deviceId, {
+        type: CommandType.ON,
+      });
 
       cmd.send(client, deviceId, {
         type: CommandType.COLOR,

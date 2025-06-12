@@ -49,10 +49,6 @@ export default function ElasticSlider({
 
   return (
     <motion.div
-      onHoverStart={() => animate(scale, 1.2)}
-      onHoverEnd={() => animate(scale, 1)}
-      onTouchStart={() => animate(scale, 1.2)}
-      onTouchEnd={() => animate(scale, 1)}
       style={{
         scale,
         opacity: useTransform(scale, [1, 1.2], [0.9, 1]),
@@ -105,13 +101,13 @@ export default function ElasticSlider({
                 return clientX.get() < left + width / 2 ? "right" : "left";
               }
             }),
-            height: useTransform(scale, [1, 1.2], [16, 16]),
+            height: useTransform(scale, [1, 1.2], [42, 42]),
             marginTop: useTransform(scale, [1, 1.2], [0, -3]),
             marginBottom: useTransform(scale, [1, 1.2], [0, -3]),
           }}
           className="flex grow"
         >
-          <RadixSlider.Track className="relative isolate h-full grow overflow-hidden rounded-full bg-muted">
+          <RadixSlider.Track className="relative isolate h-full grow overflow-hidden rounded-xl bg-muted">
             <RadixSlider.Range className="absolute h-full bg-primary" />
           </RadixSlider.Track>
         </motion.div>
