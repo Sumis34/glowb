@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
+import mqtt, { MqttClient } from "mqtt";
+import cmd, { CommandType } from "@/lib/cmd";
 
 export enum Mode {
   NONE,
@@ -68,103 +70,110 @@ export default function useController({
   id?: string;
   host?: string;
 }) {
-  const [socketUrl] = useState(`ws://${host ?? "192.168.1.121"}:81`);
+  const deviceId = id || "default-device-id";
 
-  const [deviceId, setDeviceId] = useState(id);
+  const [client, setClient] = useState<MqttClient | null>(null);
 
-  const { sendMessage, lastMessage, readyState } = useWebSocket(socketUrl, {
-    onOpen: () => sendMessage(JSON.stringify({ type: "PING" })),
-  });
+  useEffect(() => {
+    const connect = () => {
+      setClient(mqtt.connect("ws://broker.hivemq.com:8000/mqtt"));
+    };
 
-  const [allowLocalControl, setAllowLocalControl] = useState(true);
-
-  const wsIsReady = readyState === ReadyState.OPEN;
-
-  const useRemote =
-    (preferRemoteControl || !wsIsReady || !allowLocalControl) && deviceId;
+    console.log(client);
+    if (client) {
+      client.on("connect", () => {
+        console.log("Connected to MQTT broker");
+      });
+      client.on("error", (err) => {
+        console.error("Connection error: ", err);
+        client.end();
+      });
+    } else {
+      connect();
+    }
+  }, [client, setClient]);
 
   const handleSetMode = useCallback(
-    (mode: Mode) => {
-      if (useRemote) {
-        return setMode(mode, deviceId);
+    async (mode: Mode) => {
+      const modes = {
+        [Mode.NONE]: CommandType.NO_MODE,
+        [Mode.RAINBOW]: CommandType.RAINBOW_MODE,
+        [Mode.CANDLE]: CommandType.CANDLE_MODE,
+        [Mode.LOVE]: CommandType.LOVE_MODE,
+      };
+
+      if (!client) {
+        console.error("MQTT client is not connected");
+        return;
       }
 
-      sendMessage(
-        JSON.stringify({
-          type: "MODE",
-          value: mode,
-        })
-      );
+      await cmd.send(client, deviceId, {
+        version: 1,
+        type: modes[mode], // Assuming 0 is the type for mode
+        value: 0,
+        r: 0,
+        g: 0,
+        b: 0,
+        w: 0,
+      });
+
+      // setMode(mode, deviceId);
     },
-    [sendMessage, useRemote, deviceId]
+    [deviceId, client]
   );
 
   const handleTogglePower = useCallback(() => {
-    if (useRemote) {
-      return togglePower(deviceId);
+    // togglePower(deviceId);
+
+    if (!client) {
+      console.error("MQTT client is not connected");
+      return;
     }
 
-    sendMessage(
-      JSON.stringify({
-        type: "TOGGLE_POWER",
-      })
-    );
-  }, [sendMessage, useRemote, deviceId]);
+    cmd.send(client, deviceId, {
+      type: CommandType.TOGGLE_POWER,
+    });
+  }, [client, deviceId]);
 
   const handleSetBrightness = useCallback(
     (brightness: number) => {
-      if (useRemote) {
-        return setDeviceBrightness(brightness, deviceId);
+      if (!client) {
+        console.error("MQTT client is not connected");
+        return;
       }
 
-      sendMessage(
-        JSON.stringify({
-          type: "BRIGHTNESS",
-          value: brightness,
-        })
-      );
+      cmd.send(client, deviceId, {
+        type: CommandType.BRIGHTNESS,
+        value: brightness,
+      });
     },
-    [sendMessage, useRemote, deviceId]
+    [client, deviceId]
   );
 
   const handleSetColor = useCallback(
     (color: { r: number; g: number; b: number; w: number }) => {
-      if (useRemote) {
-        return setColor(color, deviceId);
+      if (!client) {
+        console.error("MQTT client is not connected");
+        return;
       }
 
-      sendMessage(
-        JSON.stringify({
-          type: "COLOR",
-          value: color,
-        })
-      );
+      cmd.send(client, deviceId, {
+        type: CommandType.COLOR,
+        r: color.r,
+        g: color.g,
+        b: color.b,
+        w: color.w,
+      });
+      // setColor(color, deviceId);
     },
-    [sendMessage, useRemote, deviceId]
+    [client, deviceId]
   );
-
-  useEffect(() => {
-    const message = parseMessage(lastMessage?.data);
-
-    switch (message?.type) {
-      case "PONG":
-        if (id && id !== message?.message) {
-          console.log("Device ID mismatch detected - disabling local control");
-          setAllowLocalControl(false);
-        } else {
-          setDeviceId(message?.message);
-        }
-        break;
-      default:
-        break;
-    }
-  }, [lastMessage, id]);
 
   return {
     local: {
-      isConnected: wsIsReady,
-      isAvailable: wsIsReady && allowLocalControl,
-      readyState,
+      isConnected: false,
+      isAvailable: false,
+      readyState: false,
     },
     setMode: handleSetMode,
     togglePower: handleTogglePower,

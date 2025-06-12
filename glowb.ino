@@ -1,11 +1,9 @@
-#include <ESPmDNS.h>
-
 #include <Adafruit_NeoPixel.h>
+#include <ESPmDNS.h>
+#include <MQTT.h>
 #include <WebSocketsClient.h>
 #include <WebSocketsServer.h>
 #include <WiFiManager.h>
-
-#include "ArduinoJson.h"
 
 #define LED_PIN 27
 #define BUTTON_PIN 26
@@ -22,9 +20,31 @@ enum Mode {
     MODE_COUNT
 };
 
+enum CommandType : uint8_t {
+    ON,
+    OFF,
+    PING,
+    TOGGLE_POWER,
+    BRIGHTNESS,
+    COLOR,
+    BEGIN_MODE_RANGE,
+    RAINBOW_MODE,
+    CANDLE_MODE,
+    LOVE_MODE,
+    NO_MODE,
+    END_MODE_RANGE
+};
+
+struct CommandMessage {
+    uint8_t version;
+    CommandType type;
+    uint8_t value;       // For brightness or other numeric values
+    uint8_t r, g, b, w;  // For color values
+};
+
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, LED_PIN, NEO_RGBW + NEO_KHZ800);
 
-String hostname = "glowb2";
+String hostname = "glowb3";
 int brightness = 20;
 bool isOn = true;
 uint8_t r = 0;
@@ -49,18 +69,14 @@ int rainbowColorOffset = 0;
 unsigned long lastRainbowUpdate = 0;
 int rainbowInterval = 100;
 
-// Status update
 unsigned long lastStatusUpdate = 0;
 unsigned long statusInterval = 5000;
 
-// Websocket
-const uint8_t size = JSON_OBJECT_SIZE(40);
-unsigned long lastPingReceived = 0;
+// mqtt
+WiFiClient net;
+MQTTClient mqtt;
 
-WebSocketsClient ws;
 WebSocketsServer wsServer = WebSocketsServer(81);
-StaticJsonDocument<size> data;
-StaticJsonDocument<size> res;
 
 void setClock() {
     configTime(0, 0, "europe.pool.ntp.org");
@@ -81,146 +97,74 @@ void setClock() {
     USE_SERIAL.print(asctime(&timeinfo));
 }
 
-void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
-    String resString;
-    String resText;
-    switch (type) {
-        case WStype_DISCONNECTED:
-            USE_SERIAL.printf("[WSc] Disconnected!\n");
-            break;
-        case WStype_CONNECTED:
-            res["type"] = "ack";
-            res["message"] = "connected";
-
-            USE_SERIAL.printf("[WSc] Connected to url: %s\n", payload);
-
-            serializeJson(res, resString);
-            ws.sendTXT(resString);
-            break;
-        case WStype_TEXT:
-            resText = webSocketPayloadHandler(payload);
-            ws.sendTXT(resText);
-            break;
-        case WStype_ERROR:
-            USE_SERIAL.printf("[WSc] Error: %s\n", payload);
-            break;
-    }
+void prepareForMode() {
+    oldR = r;
+    oldG = g;
+    oldB = b;
+    oldW = w;
+    oldMode = mode;
 }
 
-void webSocketServerEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
-    String resText;
-    switch (type) {
-        case WStype_DISCONNECTED:
-            USE_SERIAL.printf("[%u] Disconnected!\n", num);
-            break;
-        case WStype_CONNECTED: {
-            IPAddress ip = wsServer.remoteIP(num);
-            USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-            wsServer.sendTXT(num, "Connected");
-        } break;
-        case WStype_TEXT:
-            USE_SERIAL.printf("[%u] Got text");
-            resText = webSocketPayloadHandler(payload);
-            wsServer.sendTXT(num, resText);
-            break;
-        case WStype_ERROR:
-        case WStype_FRAGMENT_TEXT_START:
-        case WStype_FRAGMENT_BIN_START:
-        case WStype_FRAGMENT:
-        case WStype_FRAGMENT_FIN:
-            break;
+void mqttCallback(MQTTClient* client, char topic[], char bytes[], int length) {
+    if (length < sizeof(CommandMessage)) {
+        Serial.print(length);
+        Serial.println(" bytes received, expected at least " + String(sizeof(CommandMessage)) + " bytes");
+        Serial.println("Received payload too short");
+        return;
     }
-}
 
-String webSocketPayloadHandler(uint8_t* payload) {
-    String resString;
-    deserializeJson(data, payload);
+    CommandMessage* msg = (CommandMessage*)bytes;
 
-    if (data["type"] == "ON") {
-        isOn = true;
-    } else if (data["type"] == "OFF") {
-        isOn = false;
-    } else if (data["type"] == "PING") {
-        res["type"] = "PONG";
-        res["message"] = String(ESP.getEfuseMac(), HEX);;
-        serializeJson(res, resString);
-        lastPingReceived = millis();
-    } else if (data["type"] == "TOGGLE_POWER") {
-        toggleOn();
-        res["type"] = "ACK_TOGGLE_POWER";
-        res["message"] = "Power toggled";
-
-        serializeJson(res, resString);
-    } else if (data["type"] == "BRIGHTNESS") {
-        brightness = data["value"];
-
-        res["type"] = "ACK_BRIGHTNESS";
-        res["message"] = "Set brightness to " + String(brightness);
-
-        serializeJson(res, resString);
-    } else if (data["type"] == "COLOR") {
-        if (!isOn) {
+    switch (msg->type) {
+        case ON:
+            isOn = true;
+            break;
+        case OFF:
+            isOn = false;
+            break;
+        case COLOR:
+            r = msg->r;
+            g = msg->g;
+            b = msg->b;
+            w = msg->w;
+            break;
+        case BRIGHTNESS:
+            brightness = msg->value;
+            if (brightness > 255) {
+                brightness = 255;
+            } else if (brightness < 0) {
+                brightness = 0;
+            }
+            break;
+        case TOGGLE_POWER:
             toggleOn();
-        }
-
-        r = data["r"];
-        g = data["g"];
-        b = data["b"];
-        w = data["w"];
-
-        res["type"] = "ACK_COLOR";
-
-        serializeJson(res, resString);
-    } else if (data["type"] == "MODE") {
-        Mode selectedMode = data["value"];
-
-        // Safe color values before changing mode
-        oldR = r;
-        oldG = g;
-        oldB = b;
-        oldW = w;
-        oldMode = mode;
-
-        if (selectedMode == mode) {
-            mode = NONE;
-            res["type"] = "ACK_MODE";
-            res["message"] = "Mode was active, turned of";
-        } else if (selectedMode == RAINBOW) {
-            mode = RAINBOW;
-        } else if (selectedMode == CANDLE) {
-            mode = CANDLE;
-        } else if (selectedMode == LOVE) {
+            break;
+        case LOVE_MODE:
+            prepareForMode();
             lastLoveClick = millis();
             loveActive = true;
             mode = LOVE;
-        } else {
-            res["type"] = "ERROR";
-            res["message"] = "Invalid mode";
-        }
-
-        serializeJson(res, resString);
-    } else if (data["type"] == "mic") {
-        // mode = MIC;
-    } else if (data["type"] == "status") {
-        res["type"] = "status";
-        res["isOn"] = isOn;
-        res["brightness"] = brightness;
-        res["r"] = r;
-        res["g"] = g;
-        res["b"] = b;
-        res["w"] = w;
-
-        serializeJson(res, resString);
-
-        // send message to server
-        ws.sendTXT(resString);
-    } else {
-        res["type"] = "error";
-        res["message"] = "Invalid type";
-
-        serializeJson(res, resString);
+            break;
+        case RAINBOW_MODE:
+            prepareForMode();
+            mode = RAINBOW;
+            break;
+        case CANDLE_MODE:
+            prepareForMode();
+            mode = CANDLE;
+            break;
+        default:
+            Serial.println("Unknown command type");
+            break;
     }
-    return resString;
+}
+
+void connect() {
+    String clientId = "glowb-client-" + String(ESP.getEfuseMac(), HEX);
+    while (!mqtt.connect(clientId.c_str(), "user", "pass")) {
+        Serial.print("...");
+    }
+    mqtt.subscribe("/glowb/device/" + String(ESP.getEfuseMac(), HEX) + "/cmd");
 }
 
 void love() {
@@ -275,23 +219,6 @@ void rainbow() {
         rainbowColorOffset = (rainbowColorOffset + 256) % 65536L;
         strip.show();
     }
-}
-
-void sendStatus() {
-    StaticJsonDocument<JSON_OBJECT_SIZE(40)> statusRes;
-    String statusResString;
-
-    statusRes["type"] = "STATUS";
-    statusRes["isOn"] = isOn;
-    statusRes["brightness"] = brightness;
-    statusRes["mode"] = mode;
-    statusRes["r"] = r;
-    statusRes["g"] = g;
-    statusRes["b"] = b;
-    statusRes["w"] = w;
-
-    serializeJson(statusRes, statusResString);
-    ws.sendTXT(statusResString);
 }
 
 void buttonSinglePress() {
@@ -360,27 +287,18 @@ void setup() {
     // setClock();
 
     // DEV MODE
-    ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
+    // ws.begin("192.168.1.127", 5005, "/ws?id=" + macAddress);
 
     // PROD MODE
     // ws.beginSSL("glowb-api.on.shiper.app", 443, "/ws?id=" + macAddress);
 
-    // Websocket server for local control
-    wsServer.begin();
-    wsServer.onEvent(webSocketServerEvent);
+    mqtt.begin("broker.hivemq.com", net);
+    mqtt.onMessageAdvanced(mqttCallback);
+    connect();
 
-    // event handler
-    ws.onEvent(webSocketEvent);
-
-    lastPingReceived = millis();
-
-    // try ever 5000 again if connection has failed
-    ws.setReconnectInterval(5000);
-    ws.enableHeartbeat(10000, 3000, 2);
-
-    if (!MDNS.begin(hostname)) {
-        Serial.println("Failed to start mDNS");
-    }
+    // if (!MDNS.begin(hostname)) {
+    //     Serial.println("Failed to start mDNS");
+    // }
 }
 
 void loop() {
@@ -482,19 +400,19 @@ void loop() {
             strip.clear();
     }
 
-    if (ws.isConnected()) {
-        digitalWrite(BUTTON_LED_PIN, LOW);
-    } else {
+    if (!mqtt.connected()) {
         digitalWrite(BUTTON_LED_PIN, HIGH);
+        connect();
+    } else {
+        digitalWrite(BUTTON_LED_PIN, LOW);
     }
 
     if (millis() - lastStatusUpdate > statusInterval) {
-        sendStatus();
+        // sendStatus();
         lastStatusUpdate = millis();
     }
 
     // Serial.println(digitalRead(BUTTON_PIN));
-    ws.loop();
-    wsServer.loop();
+    mqtt.loop();
     strip.show();
 }

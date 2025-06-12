@@ -204,5 +204,4 @@ app.get(
 export default {
   port: 5005,
   fetch: app.fetch,
-  websocket,
 };
