@@ -76,7 +76,7 @@ export default function useController({
 
   useEffect(() => {
     const connect = () => {
-      setClient(mqtt.connect("ws://broker.hivemq.com:8000/mqtt"));
+      setClient(mqtt.connect("wss://broker.hivemq.com:8884/mqtt"));
     };
 
     console.log(client);
