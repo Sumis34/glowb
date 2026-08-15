@@ -1,7 +1,5 @@
-onlyBuiltDependencies:
-  - unrs-resolver
-
-neverBuiltDependencies: []
+allowBuilds:
+  unrs-resolver: true
 
 overrides:
   electron-to-chromium: 1.5.405
