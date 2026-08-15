@@ -4,12 +4,19 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import useController from "@/lib/hooks/useController";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { LuLoader2 } from "react-icons/lu";
+import { LuLoader } from "react-icons/lu";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const controller = useController({});
+  const [code, setCode] = useState("");
+
+  const router = useRouter();
 
   const devices = useLiveQuery(() => db.devices.toArray(), []);
 
@@ -26,7 +33,7 @@ export default function Home() {
           <div className="bg-neutral-200 w-full p-3 border border-neutral-300 rounded-xl flex flex-col">
             {!controller.local.isAvailable && (
               <div className="text-sm flex items-center">
-                <LuLoader2 className="animate-spin mr-2" />
+                <LuLoader className="animate-spin mr-2" />
                 Searching
               </div>
             )}
@@ -49,6 +56,23 @@ export default function Home() {
               </div>
             )}
           </div>
+          <Separator className="my-3" />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              router.push(`/device/${code}`);
+            }}
+            className="flex w-full gap-2"
+          >
+            <Input
+              className="w-full"
+              placeholder="ad9113fd615"
+              value={code}
+              required
+              onChange={(e) => setCode(e.target.value)}
+            />
+            <Button>Link</Button>
+          </form>
           {devices && devices.length > 0 && (
             <>
               <h2 className="mt-5 font-bold text-sm">Recent Connections</h2>
