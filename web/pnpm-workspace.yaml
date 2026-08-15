@@ -1,3 +1,5 @@
-# Had to be added because the newest version was to new.
+ignoredBuiltDependencies:
+  - unrs-resolver
+
 overrides:
   electron-to-chromium: 1.5.405
